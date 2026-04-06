@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+npm-debug.log
+npm-error.log
+yarn-error.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+out/
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
