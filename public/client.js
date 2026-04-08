@@ -152,10 +152,16 @@ function setupSocketEvents() {
             document.getElementById('instructor-badge-container').style.display = 'flex';
         }
         
+        // 자신을 참여자 목록에 먼저 추가
+        addParticipantToList(state.socket.id, state.userName, state.isInstructor);
+        
+        // 기존 사용자 추가
         users.forEach(user => {
             addParticipantToList(user.id, user.name, user.isInstructor);
             createOffer(user.id, user.name);
         });
+        
+        updateParticipantCount();
     });
 
     // 오퍼 받음
