@@ -20,7 +20,8 @@ const state = {
     isAudioEnabled: true,
     isScreenSharing: false,
     remoteUsers: {},
-    currentScreenShareUserId: null
+    currentScreenShareUserId: null,
+    isSidebarVisible: true
 };
 
 // 초기화
@@ -275,6 +276,9 @@ function initializeConferenceScreen() {
 
     // 화면 공유
     document.getElementById('screen-share-btn').addEventListener('click', toggleScreenShare);
+
+    // 사이드바 토글
+    document.getElementById('toggle-sidebar-btn').addEventListener('click', toggleSidebar);
 
     // 설정
     document.getElementById('settings-btn').addEventListener('click', () => {
@@ -764,4 +768,16 @@ function showNotification(message, type = 'info') {
         notification.style.opacity = '0';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// ========== 사이드바 토글 ==========
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    state.isSidebarVisible = !state.isSidebarVisible;
+    
+    if (state.isSidebarVisible) {
+        sidebar.classList.remove('hidden');
+    } else {
+        sidebar.classList.add('hidden');
+    }
 }
