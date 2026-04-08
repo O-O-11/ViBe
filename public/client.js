@@ -21,7 +21,8 @@ const state = {
     isScreenSharing: false,
     remoteUsers: {},
     currentScreenShareUserId: null,
-    isSidebarVisible: true
+    isSidebarVisible: true,
+    isInstructor: false
 };
 
 // 초기화
@@ -104,6 +105,9 @@ async function joinRoom(userName, roomId) {
         document.getElementById('login-container').classList.remove('active');
         document.getElementById('conference-container').classList.add('active');
 
+        // 로컬 이름 표시
+        document.getElementById('local-username').textContent = userName;
+
         // 소켓 연결 및 방 참여
         if (!state.socket) {
             state.socket = io();
@@ -125,11 +129,11 @@ async function joinRoom(userName, roomId) {
 function setupSocketEvents() {
     // 다른 사용자가 입장했을 때
     document.addEventListener('socket-user-joined', (e) => {
-        const { userId, userName } = e.detail;
+        const { userId, userName, isInstructor } = e.detail;
         console.log(`✅ ${userName}이 입장했습니다`);
         showNotification(`${userName}이 입장했습니다`);
         updateParticipantCount();
-        addParticipantToList(userId, userName);
+        addParticipantToList(userId, userName, isInstructor);
 
         // 오퍼 생성 (기존 사용자가 먼저 오퍼 생성)
         createOffer(userId, userName);
@@ -137,11 +141,19 @@ function setupSocketEvents() {
 
     // 기존 사용자 목록 받음
     document.addEventListener('socket-existing-users', (e) => {
-        const { users } = e.detail;
+        const { users, isUserInstructor } = e.detail;
         console.log('기존 사용자:', users);
         
+        // 현재 사용자가 강의자인지 설정
+        state.isInstructor = isUserInstructor;
+        
+        // 강의자 배지 표시
+        if (state.isInstructor) {
+            document.getElementById('instructor-badge-container').style.display = 'flex';
+        }
+        
         users.forEach(user => {
-            addParticipantToList(user.id, user.name);
+            addParticipantToList(user.id, user.name, user.isInstructor);
             createOffer(user.id, user.name);
         });
     });
@@ -280,6 +292,10 @@ function initializeConferenceScreen() {
     // 사이드바 토글
     document.getElementById('toggle-sidebar-btn').addEventListener('click', toggleSidebar);
 
+    // 이름 변경 메뉴
+    document.getElementById('username-menu-btn').addEventListener('click', toggleUsernameMenu);
+    document.getElementById('rename-username-btn').addEventListener('click', renameUsername);
+
     // 설정
     document.getElementById('settings-btn').addEventListener('click', () => {
         showNotification('설정 기능이 준비 중입니다', 'info');
@@ -303,6 +319,15 @@ function initializeConferenceScreen() {
 
     // 화면 공유 닫기
     document.getElementById('close-screen-share-btn').addEventListener('click', closeScreenShare);
+
+    // 메뉴 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('username-menu');
+        const menuBtn = document.getElementById('username-menu-btn');
+        if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+            menu.style.display = 'none';
+        }
+    });
 }
 
 // ========== WebRTC 연결 ==========
@@ -681,7 +706,7 @@ function updateParticipantCount() {
     document.getElementById('participant-count').textContent = count;
 }
 
-function addParticipantToList(userId, userName) {
+function addParticipantToList(userId, userName, isInstructor = false) {
     const listEl = document.getElementById('participants-list');
 
     let participantEl = document.getElementById(`participant-${userId}`);
@@ -689,7 +714,12 @@ function addParticipantToList(userId, userName) {
         participantEl = document.createElement('div');
         participantEl.id = `participant-${userId}`;
         participantEl.className = 'participant-item';
-        participantEl.textContent = userName;
+        
+        if (isInstructor) {
+            participantEl.innerHTML = `${userName} <span class="instructor-badge">강의자</span>`;
+        } else {
+            participantEl.textContent = userName;
+        }
 
         listEl.appendChild(participantEl);
     }
@@ -779,5 +809,37 @@ function toggleSidebar() {
         sidebar.classList.remove('hidden');
     } else {
         sidebar.classList.add('hidden');
+    }
+}
+
+// ========== 이름 관리 메뉴 ==========
+function toggleUsernameMenu() {
+    const menu = document.getElementById('username-menu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function renameUsername() {
+    const newName = prompt('새로운 이름을 입력하세요:', state.userName);
+    
+    if (newName && newName.trim()) {
+        const trimmedName = newName.trim();
+        state.userName = trimmedName;
+        
+        // UI에 새로운 이름 표시 (강의자 배지는 별도 요소)
+        document.getElementById('local-username').textContent = trimmedName;
+        
+        // 메뉴 닫기
+        document.getElementById('username-menu').style.display = 'none';
+        
+        // 원격 사용자들에게 새로운 이름 알림
+        if (state.socket) {
+            state.socket.emit('username-changed', {
+                roomId: state.roomId,
+                userId: state.socket.id,
+                newName: trimmedName
+            });
+        }
+        
+        showNotification(`이름이 "${trimmedName}"으로 변경되었습니다`);
     }
 }

@@ -44,25 +44,29 @@ io.on('connection', (socket) => {
       rooms[roomId] = {
         id: roomId,
         users: [],
+        instructorId: socket.id,
         createdAt: Date.now()
       };
     }
 
     rooms[roomId].users.push({
       id: socket.id,
-      name: userName
+      name: userName,
+      isInstructor: rooms[roomId].instructorId === socket.id
     });
 
     // 방의 다른 사용자들에게 새 사용자 입장 알림
     socket.broadcast.to(roomId).emit('user-joined', {
       userId: socket.id,
       userName: userName,
+      isInstructor: rooms[roomId].instructorId === socket.id,
       totalUsers: rooms[roomId].users.length
     });
 
     // 새 사용자에게 기존 사용자 목록 전송
     socket.emit('existing-users', {
-      users: rooms[roomId].users.filter(u => u.id !== socket.id)
+      users: rooms[roomId].users.filter(u => u.id !== socket.id),
+      isUserInstructor: rooms[roomId].instructorId === socket.id
     });
 
     console.log(`🚪 사용자 합류: ${userName}이 방 ${roomId}에 입장`);

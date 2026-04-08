@@ -33,7 +33,7 @@
                     </button>
                 </div>
                 <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">
-                    회의 참여
+                    강의실 생성
                 </button>
             </form>
 
@@ -58,7 +58,16 @@
             <div class="video-grid">
                 <div id="local-video-container" class="video-tile local">
                     <video id="local-video" autoplay muted playsinline></video>
-                    <div class="video-label">나 (로컬)</div>
+                    <div class="video-label">
+                        <span id="local-username">나 (로컬)</span>
+                        <button id="username-menu-btn" class="username-menu-btn" title="이름 관리">...</button>
+                        <div id="username-menu" class="username-menu" style="display: none;">
+                            <button class="menu-item" id="rename-username-btn">이름 변경하기</button>
+                        </div>
+                        <div id="instructor-badge-container" class="instructor-badge-container" style="display: none;">
+                            <span class="instructor-badge">강의자</span>
+                        </div>
+                    </div>
                     <div class="video-controls">
                         <button id="toggle-video-btn" class="control-btn" title="카메라 켜기/끄기">
                             <span class="icon">📹</span>
