@@ -36,52 +36,53 @@ body {
 .login-box {
     background: white;
     border-radius: 12px;
-    padding: 40px;
+    padding: 80px;
     width: 100%;
-    max-width: 400px;
+    max-width: 600px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     color: #333;
 }
 
 .login-box h1 {
-    font-size: 32px;
+    font-size: 56px;
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
     color: #667eea;
 }
 
 .subtitle {
     text-align: center;
     color: #666;
-    margin-bottom: 30px;
-    font-size: 14px;
+    margin-bottom: 50px;
+    font-size: 22px;
 }
 
 .form-group {
     display: flex;
     gap: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 25px;
 }
 
 .form-group input {
     flex: 1;
-    padding: 12px;
+    padding: 18px;
     border: 1px solid #ddd;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 20px;
 }
 
 .form-group input:focus {
     outline: none;
     border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 5px rgba(102, 126, 234, 0.1);
 }
 
 .divider {
     text-align: center;
-    margin: 20px 0;
+    margin: 50px 0;
     color: #999;
     position: relative;
+    font-size: 18px;
 }
 
 .divider::before {
@@ -97,7 +98,7 @@ body {
 .divider::after {
     content: attr(data-text);
     background: white;
-    padding: 0 10px;
+    padding: 0 15px;
     position: relative;
     z-index: 1;
 }
@@ -107,9 +108,9 @@ body {
     background: #667eea;
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 18px 36px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 20px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.3s;
@@ -123,9 +124,9 @@ body {
     background: white;
     color: #667eea;
     border: 2px solid #667eea;
-    padding: 10px 20px;
+    padding: 16px 32px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s;
