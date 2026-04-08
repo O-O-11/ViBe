@@ -7,8 +7,10 @@ const RTCConfig = {
     ]
 };
 
-// OpenAI API 설정
-const OPENAI_API_KEY = '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';
+// 백엔드 서버 URL 설정
+const BACKEND_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000' 
+    : window.location.protocol + '//' + window.location.host;
 
 // 전역 변수
 const state = {
@@ -114,7 +116,7 @@ async function joinRoom(userName, roomId) {
 
         // 소켓 연결 및 방 참여
         if (!state.socket) {
-            state.socket = io();
+            state.socket = io(BACKEND_URL);
         }
 
         state.socket.emit('join-room', {
@@ -223,7 +225,7 @@ function setupSocketEvents() {
 // Socket.IO 이벤트 연결
 function initializeSocket() {
     if (!state.socket) {
-        state.socket = io();
+        state.socket = io(BACKEND_URL);
     }
 
     state.socket.on('connect', () => {
@@ -816,7 +818,7 @@ function toggleSidebar() {
     }
 }
 
-// ========== 질문 다듬기 ==========
+// ========== 질문 다듬기 (백엔드 API 호출) ==========
 async function refineQuestion() {
     const question = document.getElementById('chat-message-input').value.trim();
     
@@ -829,27 +831,13 @@ async function refineQuestion() {
     btn.textContent = '⏳';
 
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        // 백엔드 API 호출
+        const response = await fetch(`${BACKEND_URL}/api/refine-question`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENAI_API_KEY}`
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    {
-                        role: 'system',
-                        content: '너는 학생의 질문을 논리적으로 정리하고 다듬어서 선생님께 더 잘 전달할 수 있는 질문으로 변환해주는 조수야. 다듬어진 질문만 반환해줘. 다른 설명이나 인사말은 하지말고 순수 질문만 반환해.'
-                    },
-                    {
-                        role: 'user',
-                        content: `다음 질문을 논리적으로 정리해서 다듬어진 질문으로 만들어줘:\n\n${question}`
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 500
-            })
+            body: JSON.stringify({ question: question })
         });
 
         if (!response.ok) {
@@ -857,7 +845,7 @@ async function refineQuestion() {
         }
 
         const data = await response.json();
-        const refinedQuestion = data.choices[0].message.content.trim();
+        const refinedQuestion = data.refinedQuestion;
         
         state.suggestedQuestion = refinedQuestion;
         
@@ -867,6 +855,7 @@ async function refineQuestion() {
         
     } catch (error) {
         console.error('질문 다듬기 오류:', error);
+        showNotification('질문 다듬기 중 오류가 발생했습니다', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = '✨';

@@ -1,0 +1,26 @@
+# Render Deployment Configuration for ViBe Backend
+# Deploy to Render at: https://dashboard.render.com
+
+services:
+  - type: web
+    name: vibe-backend
+    runtime: node
+    plan: free
+    autoDeploy: true
+    github:
+      repo: your-github-username/vibe  # Update this
+      branch: main
+      deployOnPush: true
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        value: https://vibe-frontend.vercel.app  # Update this
+      - key: OPENAI_API_KEY
+        scope: secret
+        value: ${{ secrets.OPENAI_API_KEY }}  # Add in Render dashboard
+    buildCommand: npm install
+    rootDir: backend

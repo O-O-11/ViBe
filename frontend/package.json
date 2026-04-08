@@ -1,0 +1,14 @@
+{
+  "name": "vibe-frontend",
+  "version": "1.0.0",
+  "description": "ViBe Video Conference Frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "python -m http.server 5173 --bind 127.0.0.1",
+    "build": "echo 'No build step needed for static files'",
+    "preview": "python -m http.server 5173 --bind 127.0.0.1"
+  },
+  "keywords": ["video", "conference", "webrtc", "frontend"],
+  "author": "",
+  "license": "MIT"
+}
