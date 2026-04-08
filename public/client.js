@@ -7,6 +7,9 @@ const RTCConfig = {
     ]
 };
 
+// OpenAI API 설정
+const OPENAI_API_KEY = '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';
+
 // 전역 변수
 const state = {
     socket: null,
@@ -22,7 +25,8 @@ const state = {
     remoteUsers: {},
     currentScreenShareUserId: null,
     isSidebarVisible: true,
-    isInstructor: false
+    isInstructor: false,
+    suggestedQuestion: null
 };
 
 // 초기화
@@ -301,6 +305,11 @@ function initializeConferenceScreen() {
     // 이름 변경 메뉴
     document.getElementById('username-menu-btn').addEventListener('click', toggleUsernameMenu);
     document.getElementById('rename-username-btn').addEventListener('click', renameUsername);
+
+    // 질문 다듬기
+    document.getElementById('refine-question-btn').addEventListener('click', refineQuestion);
+    document.getElementById('accept-suggestion-btn').addEventListener('click', acceptSuggestion);
+    document.getElementById('reject-suggestion-btn').addEventListener('click', rejectSuggestion);
 
     // 설정
     document.getElementById('settings-btn').addEventListener('click', () => {
@@ -792,18 +801,7 @@ function leaveConference() {
 
 // ========== 알림 ==========
 function showNotification(message, type = 'info') {
-    const container = document.getElementById('notification-area');
-
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-
-    container.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    return; // 알림 비활성화
 }
 
 // ========== 사이드바 토글 ==========
@@ -816,6 +814,78 @@ function toggleSidebar() {
     } else {
         sidebar.classList.add('hidden');
     }
+}
+
+// ========== 질문 다듬기 ==========
+async function refineQuestion() {
+    const question = document.getElementById('chat-message-input').value.trim();
+    
+    if (!question) {
+        return;
+    }
+
+    const btn = document.getElementById('refine-question-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {
+                        role: 'system',
+                        content: '너는 사용자의 질문을 논리적으로 정리하고 다듬어서 더 명확하고 이해하기 쉬운 질문으로 변환해주는 조수야. 다듬어진 질문만 반환해줘. 다른 설명이나 인사말은 하지말고 순수 질문만 반환해.'
+                    },
+                    {
+                        role: 'user',
+                        content: `다음 질문을 논리적으로 정리해서 다듬어진 질문으로 만들어줘:\n\n${question}`
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 500
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API 오류: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const refinedQuestion = data.choices[0].message.content.trim();
+        
+        state.suggestedQuestion = refinedQuestion;
+        
+        // 제안 영역 표시
+        document.getElementById('suggestion-text').textContent = refinedQuestion;
+        document.getElementById('suggestion-area').style.display = 'block';
+        
+    } catch (error) {
+        console.error('질문 다듬기 오류:', error);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '✨';
+    }
+}
+
+function acceptSuggestion() {
+    if (state.suggestedQuestion) {
+        document.getElementById('chat-message-input').value = state.suggestedQuestion;
+        document.getElementById('suggestion-area').style.display = 'none';
+        state.suggestedQuestion = null;
+        
+        // 자동으로 전송하지 않고 사용자가 버튼을 눌러서 전송하도록 함
+    }
+}
+
+function rejectSuggestion() {
+    document.getElementById('suggestion-area').style.display = 'none';
+    state.suggestedQuestion = null;
 }
 
 // ========== 이름 관리 메뉴 ==========

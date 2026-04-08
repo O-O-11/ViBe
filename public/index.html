@@ -109,12 +109,26 @@
                 <!-- 채팅 탭 -->
                 <div id="chat-tab" class="tab-content">
                     <div id="chat-messages" class="chat-messages"></div>
+                    
+                    <!-- 질문 다듬기 제안 영역 -->
+                    <div id="suggestion-area" class="suggestion-area" style="display: none;">
+                        <div class="suggestion-header">✨ 논리적으로 정리된 질문</div>
+                        <div id="suggestion-text" class="suggestion-text"></div>
+                        <div class="suggestion-buttons">
+                            <button id="accept-suggestion-btn" class="btn-suggest accept">이 질문으로 보내기</button>
+                            <button id="reject-suggestion-btn" class="btn-suggest reject">다시 작성</button>
+                        </div>
+                    </div>
+                    
                     <div class="chat-input-area">
                         <input 
                             type="text" 
                             id="chat-message-input" 
                             placeholder="메시지 입력..."
                         >
+                        <button id="refine-question-btn" class="btn-refine" title="질문 다듬기">
+                            ✨
+                        </button>
                         <button id="send-message-btn" class="btn-primary">
                             전송
                         </button>
