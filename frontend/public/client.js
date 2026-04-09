@@ -495,6 +495,8 @@ function createPeerConnection(remoteUserId, remoteUserName) {
 }
 
 function handleRemoteStream(remoteUserId, stream, remoteUserName) {
+    console.log(`[handleRemoteStream] 시작, remoteUserId: ${remoteUserId}, 스트림 트랙 수: ${stream.getTracks().length}`);
+    
     // 이미 존재하는 경우 videoElement 리셋 방지
     if (!state.remoteUsers[remoteUserId]) {
         state.remoteUsers[remoteUserId] = {
@@ -504,6 +506,14 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         };
 
         // 원격 비디오 요소 생성
+        const remoteVideosContainer = document.getElementById('remote-videos-container');
+        console.log(`[handleRemoteStream] remote-videos-container 존재? ${!!remoteVideosContainer}`);
+        
+        if (!remoteVideosContainer) {
+            console.error('[handleRemoteStream] remote-videos-container를 찾을 수 없습니다!');
+            return;
+        }
+
         let videoContainer = document.getElementById(`remote-video-${remoteUserId}`);
 
         if (!videoContainer) {
@@ -515,6 +525,9 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
             video.id = `remote-video-element-${remoteUserId}`;
             video.autoplay = true;
             video.playsinline = true;
+            video.muted = false;
+            video.style.width = '100%';
+            video.style.height = '100%';
 
             const label = document.createElement('div');
             label.className = 'video-label';
@@ -523,16 +536,24 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
             videoContainer.appendChild(video);
             videoContainer.appendChild(label);
 
-            document.getElementById('remote-videos-container').appendChild(videoContainer);
+            remoteVideosContainer.appendChild(videoContainer);
+            console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}`);
 
             state.remoteUsers[remoteUserId].videoElement = video;
         }
     }
 
     const video = state.remoteUsers[remoteUserId].videoElement;
-    if (video && video.srcObject !== stream) {
-        video.srcObject = stream;
-        console.log(`🎵 원격 스트림 설정 완료: ${remoteUserId}`);
+    if (video) {
+        try {
+            video.srcObject = stream;
+            console.log(`[handleRemoteStream] srcObject 설정 완료, play() 호출`);
+            video.play().catch(err => console.error(`[handleRemoteStream] play() 오류:`, err));
+        } catch (error) {
+            console.error(`[handleRemoteStream] srcObject 설정 오류:`, error);
+        }
+    } else {
+        console.error(`[handleRemoteStream] 비디오 엘리먼트를 찾을 수 없습니다: ${remoteUserId}`);
     }
 }
 
@@ -685,30 +706,30 @@ function closeScreenShare() {
 
 function handleScreenShareStart(userId, userName) {
     // 원격 사용자의 화면 공유 표시
-    console.log(`${userName}의 화면 공유 시작`);
+    console.log(`[handleScreenShareStart] ${userName}의 화면 공유 시작`);
     
-    // 해당 사용자의 비디오 요소를 화면 공유 영역으로 이동
-    const remoteVideoContainer = document.getElementById(`remote-video-${userId}`);
     const screenShareContainer = document.getElementById('screen-share-container');
+    const screenShareVideo = document.getElementById('screen-share-video');
     
-    if (remoteVideoContainer && screenShareContainer) {
-        // 기존 비디오 타일 숨김
-        const videoGrid = document.getElementById('remote-videos-container');
-        const tempContainer = document.createElement('div');
-        tempContainer.id = `temp-video-${userId}`;
-        tempContainer.style.display = 'none';
+    if (!screenShareContainer || !screenShareVideo) {
+        console.error('[handleScreenShareStart] 화면 공유 컨테이너 또는 비디오 엘리먼트를 찾을 수 없습니다');
+        return;
+    }
+
+    // 해당 사용자의 비디오 요소에서 스트림 가져오기
+    const remoteVideoElement = document.getElementById(`remote-video-element-${userId}`);
+    
+    if (remoteVideoElement && remoteVideoElement.srcObject) {
+        console.log(`[handleScreenShareStart] 원격 비디오 스트림을 화면 공유 영역으로 설정`);
+        screenShareVideo.srcObject = remoteVideoElement.srcObject;
+        screenShareContainer.style.display = 'flex';
+        document.getElementById('screen-share-user-name').textContent = userName;
         
-        // 비디오 요소를 화면 공유 영역으로 이동
-        const videoElement = remoteVideoContainer.querySelector('video');
-        if (videoElement) {
-            const screenShareVideo = document.getElementById('screen-share-video');
-            if (screenShareVideo) {
-                screenShareVideo.srcObject = videoElement.srcObject;
-                screenShareContainer.style.display = 'flex';
-                document.getElementById('screen-share-user-name').textContent = userName;
-                console.log(`화면 공유 영역에 ${userName} 표시`);
-            }
-        }
+        screenShareVideo.play().catch(err => {
+            console.error(`[handleScreenShareStart] play() 오류:`, err);
+        });
+    } else {
+        console.warn(`[handleScreenShareStart] 원격 비디오 엘리먼트 또는 스트림을 찾을 수 없습니다: ${userId}`);
     }
 }
 
