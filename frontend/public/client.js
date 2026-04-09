@@ -395,7 +395,7 @@ async function handleOffer(remoteUserId, remoteUserName, offer) {
             });
         }
 
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        await peerConnection.setRemoteDescription(offer);
 
         // Answer 생성
         const answer = await peerConnection.createAnswer();
@@ -423,7 +423,15 @@ async function handleAnswer(remoteUserId, answer) {
             return;
         }
 
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log(`[Answer] 현재 signaling state: ${peerConnection.signalingState}`);
+        
+        // signaling state가 "have-local-offer" 상태일 때만 Answer를 설정
+        if (peerConnection.signalingState !== 'have-local-offer') {
+            console.warn(`[Answer] 잘못된 상태에서 Answer 수신. 현재 상태: ${peerConnection.signalingState}`);
+            return;
+        }
+
+        await peerConnection.setRemoteDescription(answer);
         console.log(`✅ Answer 설정됨: ${remoteUserId}`);
     } catch (error) {
         console.error('Answer 처리 오류:', error);
@@ -487,39 +495,45 @@ function createPeerConnection(remoteUserId, remoteUserName) {
 }
 
 function handleRemoteStream(remoteUserId, stream, remoteUserName) {
-    state.remoteUsers[remoteUserId] = {
-        stream: stream,
-        name: remoteUserName,
-        videoElement: null
-    };
+    // 이미 존재하는 경우 videoElement 리셋 방지
+    if (!state.remoteUsers[remoteUserId]) {
+        state.remoteUsers[remoteUserId] = {
+            stream: stream,
+            name: remoteUserName,
+            videoElement: null
+        };
 
-    // 원격 비디오 요소 생성
-    let videoContainer = document.getElementById(`remote-video-${remoteUserId}`);
+        // 원격 비디오 요소 생성
+        let videoContainer = document.getElementById(`remote-video-${remoteUserId}`);
 
-    if (!videoContainer) {
-        videoContainer = document.createElement('div');
-        videoContainer.id = `remote-video-${remoteUserId}`;
-        videoContainer.className = 'video-tile remote';
+        if (!videoContainer) {
+            videoContainer = document.createElement('div');
+            videoContainer.id = `remote-video-${remoteUserId}`;
+            videoContainer.className = 'video-tile remote';
 
-        const video = document.createElement('video');
-        video.id = `remote-video-element-${remoteUserId}`;
-        video.autoplay = true;
-        video.playsinline = true;
+            const video = document.createElement('video');
+            video.id = `remote-video-element-${remoteUserId}`;
+            video.autoplay = true;
+            video.playsinline = true;
 
-        const label = document.createElement('div');
-        label.className = 'video-label';
-        label.textContent = remoteUserName;
+            const label = document.createElement('div');
+            label.className = 'video-label';
+            label.textContent = remoteUserName;
 
-        videoContainer.appendChild(video);
-        videoContainer.appendChild(label);
+            videoContainer.appendChild(video);
+            videoContainer.appendChild(label);
 
-        document.getElementById('remote-videos-container').appendChild(videoContainer);
+            document.getElementById('remote-videos-container').appendChild(videoContainer);
 
-        state.remoteUsers[remoteUserId].videoElement = video;
+            state.remoteUsers[remoteUserId].videoElement = video;
+        }
     }
 
     const video = state.remoteUsers[remoteUserId].videoElement;
-    video.srcObject = stream;
+    if (video && video.srcObject !== stream) {
+        video.srcObject = stream;
+        console.log(`🎵 원격 스트림 설정 완료: ${remoteUserId}`);
+    }
 }
 
 function removeRemoteUser(remoteUserId) {
