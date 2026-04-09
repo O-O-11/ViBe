@@ -489,6 +489,9 @@ body {
     border-radius: 3px;
     font-weight: 700;
     white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .chat-message-time {
