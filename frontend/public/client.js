@@ -341,6 +341,22 @@ function initializeConferenceScreen() {
     if (fileInput) fileInput.addEventListener('change', handleFileSelect);
     if (removeImageBtn) removeImageBtn.addEventListener('click', clearImagePreview);
 
+    // 이미지 모달
+    const imageModal = document.getElementById('image-modal');
+    const closeModalBtn = document.getElementById('close-image-modal-btn');
+    
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeImageModal);
+    }
+    
+    if (imageModal) {
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                closeImageModal();
+            }
+        });
+    }
+
     // 탭 전환
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', switchTab);
@@ -811,6 +827,12 @@ function addChatMessage(userName, message, timestamp, isInstructor = false, imag
         const imageEl = document.createElement('img');
         imageEl.src = imageData;
         imageEl.className = 'chat-image';
+        
+        // 이미지 클릭 시 확대 모달 열기
+        imageEl.addEventListener('click', () => {
+            openImageModal(imageData);
+        });
+        
         messageEl.appendChild(imageEl);
     }
 
@@ -871,6 +893,23 @@ function clearImagePreview() {
     // 파일 입력 초기화
     const fileInput = document.getElementById('file-input');
     fileInput.value = '';
+}
+
+// 이미지 확대 모달 열기
+function openImageModal(imageData) {
+    const modal = document.getElementById('image-modal');
+    const modalImage = document.getElementById('modal-image');
+    
+    modalImage.src = imageData;
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+}
+
+// 이미지 확대 모달 닫기
+function closeImageModal() {
+    const modal = document.getElementById('image-modal');
+    modal.classList.remove('active');
+    modal.style.display = 'none';
 }
 
 // ========== 참여자 관리 ==========
