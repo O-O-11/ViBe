@@ -353,7 +353,9 @@ async function createOffer(remoteUserId, remoteUserName) {
         const peerConnection = createPeerConnection(remoteUserId, remoteUserName);
 
         // 로컬 스트림 추가
-        state.localStream.getTracks().forEach(track => {
+        console.log(`[Offer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
+        state.localStream.getTracks().forEach((track, idx) => {
+            console.log(`[Offer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
             peerConnection.addTrack(track, state.localStream);
         });
 
@@ -386,7 +388,9 @@ async function handleOffer(remoteUserId, remoteUserName, offer) {
         if (!peerConnection) {
             peerConnection = createPeerConnection(remoteUserId, remoteUserName);
             // 로컬 스트림 추가
-            state.localStream.getTracks().forEach(track => {
+            console.log(`[handleOffer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
+            state.localStream.getTracks().forEach((track, idx) => {
+                console.log(`[handleOffer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
                 peerConnection.addTrack(track, state.localStream);
             });
         }
@@ -463,8 +467,10 @@ function createPeerConnection(remoteUserId, remoteUserName) {
 
     // 원격 스트림 처리
     peerConnection.ontrack = (event) => {
-        console.log('🎬 원격 스트림 수신:', remoteUserId);
-        handleRemoteStream(remoteUserId, event.streams[0], remoteUserName);
+        console.log(`🎬 원격 스트림 수신: ${remoteUserId}, track kind: ${event.track.kind}, streams: ${event.streams.length}`);
+        if (event.streams && event.streams.length > 0) {
+            handleRemoteStream(remoteUserId, event.streams[0], remoteUserName);
+        }
     };
 
     // 연결 상태 변화
