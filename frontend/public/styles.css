@@ -492,6 +492,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 20px;
+    line-height: 1;
 }
 
 .chat-message-time {
