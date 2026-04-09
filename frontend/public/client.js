@@ -686,14 +686,47 @@ function closeScreenShare() {
 function handleScreenShareStart(userId, userName) {
     // 원격 사용자의 화면 공유 표시
     console.log(`${userName}의 화면 공유 시작`);
+    
+    // 해당 사용자의 비디오 요소를 화면 공유 영역으로 이동
+    const remoteVideoContainer = document.getElementById(`remote-video-${userId}`);
+    const screenShareContainer = document.getElementById('screen-share-container');
+    
+    if (remoteVideoContainer && screenShareContainer) {
+        // 기존 비디오 타일 숨김
+        const videoGrid = document.getElementById('remote-videos-container');
+        const tempContainer = document.createElement('div');
+        tempContainer.id = `temp-video-${userId}`;
+        tempContainer.style.display = 'none';
+        
+        // 비디오 요소를 화면 공유 영역으로 이동
+        const videoElement = remoteVideoContainer.querySelector('video');
+        if (videoElement) {
+            const screenShareVideo = document.getElementById('screen-share-video');
+            if (screenShareVideo) {
+                screenShareVideo.srcObject = videoElement.srcObject;
+                screenShareContainer.style.display = 'flex';
+                document.getElementById('screen-share-user-name').textContent = userName;
+                console.log(`화면 공유 영역에 ${userName} 표시`);
+            }
+        }
+    }
 }
 
 function handleScreenShareEnd(userId) {
-    const video = document.getElementById('screen-share-video');
-    if (video && video.srcObject) {
-        video.srcObject.getTracks().forEach(track => track.stop());
+    const screenShareContainer = document.getElementById('screen-share-container');
+    const screenShareVideo = document.getElementById('screen-share-video');
+    
+    // 화면 공유 컨테이너 숨기기
+    if (screenShareContainer) {
+        screenShareContainer.style.display = 'none';
     }
-    document.getElementById('screen-share-container').style.display = 'none';
+    
+    // 화면 공유 영상 정리
+    if (screenShareVideo && screenShareVideo.srcObject) {
+        screenShareVideo.srcObject = null;
+    }
+    
+    console.log(`화면 공유 종료`);
 }
 
 // ========== 채팅 ==========
