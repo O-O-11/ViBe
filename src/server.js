@@ -1,26 +1,87 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import { Server as socketIo } from 'socket.io';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import axios from 'axios';
+
+// Load environment variables
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
+const io = new socketIo(server, {
   cors: {
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "*",
     methods: ["GET", "POST"]
   }
 });
 
 app.use(cors());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.json());
 
 // 활성 사용자 저장소
 const users = {};
 const rooms = {};
 
-// 소켓 연결 처리
+// ========== API Routes ==========
+// Question Refinement API Endpoint
+app.post('/api/refine-question', async (req, res) => {
+  try {
+    const { question } = req.body;
+
+    if (!question || !question.trim()) {
+      return res.status(400).json({ error: '질문을 입력해주세요' });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ error: 'OpenAI API 키가 설정되지 않았습니다' });
+    }
+
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: '너는 학생의 질문을 논리적으로 정리하고 다듬어서 선생님께 더 잘 전달할 수 있는 질문으로 변환해주는 조수야. 다듬어진 질문만 반환해줘. 다른 설명이나 인사말은 하지말고 순수 질문만 반환해.'
+        },
+        {
+          role: 'user',
+          content: `다음 질문을 논리적으로 정리해서 다듬어진 질문으로 만들어줘:\n\n${question}`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const refinedQuestion = response.data.choices[0].message.content.trim();
+    res.json({ refinedQuestion });
+
+  } catch (error) {
+    console.error('질문 다듬기 API 오류:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: '질문 다듬기 중 오류가 발생했습니다',
+      details: error.response?.data?.error?.message || error.message
+    });
+  }
+});
+
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'ViBe Backend is running' });
+});
+
+// ========== Socket.IO Events ==========
 io.on('connection', (socket) => {
   console.log(`✅ 새로운 사용자 연결: ${socket.id}`);
 
@@ -185,6 +246,8 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`\n🚀 ViBe 비디오 회의 서버 시작: http://localhost:${PORT}\n`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 ViBe 비디오 회의 서버 시작: http://0.0.0.0:${PORT}\n`);
+  console.log(`📍 API Health Check: http://0.0.0.0:${PORT}/api/health`);
+  console.log(`📍 Question Refinement API: POST http://0.0.0.0:${PORT}/api/refine-question\n`);
 });
