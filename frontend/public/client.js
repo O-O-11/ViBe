@@ -217,8 +217,8 @@ function setupSocketEvents() {
 
     // 채팅 메시지 받음
     document.addEventListener('socket-chat-message', (e) => {
-        const { userName, message, timestamp, isInstructor } = e.detail;
-        addChatMessage(userName, message, timestamp, isInstructor);
+        const { userName, message, timestamp, isInstructor, imageData } = e.detail;
+        addChatMessage(userName, message, timestamp, isInstructor, imageData);
     });
 }
 
@@ -283,8 +283,8 @@ function initializeSocket() {
 
     // 채팅 메시지
     state.socket.on('receive-message', (data) => {
-        const { userName, message, timestamp, isInstructor } = data;
-        const event = new CustomEvent('socket-chat-message', { detail: { userName, message, timestamp, isInstructor } });
+        const { userName, message, timestamp, isInstructor, imageData } = data;
+        const event = new CustomEvent('socket-chat-message', { detail: { userName, message, timestamp, isInstructor, imageData } });
         document.dispatchEvent(event);
     });
 }
@@ -328,6 +328,18 @@ function initializeConferenceScreen() {
             sendChatMessage();
         }
     });
+
+    // 파일 첨부
+    const attachBtn = document.getElementById('attach-file-btn');
+    const fileInput = document.getElementById('file-input');
+    const removeImageBtn = document.getElementById('remove-image-btn');
+    
+    if (attachBtn) attachBtn.addEventListener('click', () => {
+        fileInput.click();
+    });
+    
+    if (fileInput) fileInput.addEventListener('change', handleFileSelect);
+    if (removeImageBtn) removeImageBtn.addEventListener('click', clearImagePreview);
 
     // 탭 전환
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -751,11 +763,13 @@ function handleScreenShareEnd(userId) {
 }
 
 // ========== 채팅 ==========
+let selectedImageData = null;
+
 function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
     const message = input.value.trim();
 
-    if (!message) return;
+    if (!message && !selectedImageData) return;
 
     console.log(`[채팅 전송] 강의자 여부: ${state.isInstructor}, 사용자명: ${state.userName}`);
 
@@ -763,13 +777,15 @@ function sendChatMessage() {
         roomId: state.roomId,
         message: message,
         userName: state.userName,
-        isInstructor: state.isInstructor
+        isInstructor: state.isInstructor,
+        imageData: selectedImageData
     });
 
     input.value = '';
+    clearImagePreview();
 }
 
-function addChatMessage(userName, message, timestamp, isInstructor = false) {
+function addChatMessage(userName, message, timestamp, isInstructor = false, imageData = null) {
     console.log(`[채팅 수신] 사용자: ${userName}, 강의자: ${isInstructor}, 메시지: ${message}`);
     
     const messagesContainer = document.getElementById('chat-messages');
@@ -790,6 +806,14 @@ function addChatMessage(userName, message, timestamp, isInstructor = false) {
     const content = document.createElement('div');
     content.textContent = message;
 
+    // 이미지가 있으면 표시
+    if (imageData) {
+        const imageEl = document.createElement('img');
+        imageEl.src = imageData;
+        imageEl.className = 'chat-image';
+        messageEl.appendChild(imageEl);
+    }
+
     const time = document.createElement('div');
     time.className = 'chat-message-time';
     time.textContent = timestamp;
@@ -800,6 +824,53 @@ function addChatMessage(userName, message, timestamp, isInstructor = false) {
 
     messagesContainer.appendChild(messageEl);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// 파일 선택 처리
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+
+    // 이미지 파일인지 확인
+    if (!file.type.startsWith('image/')) {
+        showNotification('이미지 파일만 첨부 가능합니다', 'error');
+        return;
+    }
+
+    // 파일 크기 확인 (5MB 이하)
+    if (file.size > 5 * 1024 * 1024) {
+        showNotification('이미지 크기는 5MB 이하여야 합니다', 'error');
+        return;
+    }
+
+    // FileReader로 이미지 데이터 읽기
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        selectedImageData = e.target.result;
+        displayImagePreview(selectedImageData);
+    };
+    reader.readAsDataURL(file);
+}
+
+// 이미지 미리보기 표시
+function displayImagePreview(imageData) {
+    const previewArea = document.getElementById('image-preview-area');
+    const previewImage = document.getElementById('preview-image');
+    
+    previewImage.src = imageData;
+    previewArea.style.display = 'block';
+}
+
+// 이미지 미리보기 제거
+function clearImagePreview() {
+    selectedImageData = null;
+    const previewArea = document.getElementById('image-preview-area');
+    previewArea.style.display = 'none';
+    
+    // 파일 입력 초기화
+    const fileInput = document.getElementById('file-input');
+    fileInput.value = '';
 }
 
 // ========== 참여자 관리 ==========

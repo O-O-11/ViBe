@@ -196,7 +196,7 @@ io.on('connection', (socket) => {
 
   // 채팅 메시지
   socket.on('send-message', (data) => {
-    const { roomId, message, userName } = data;
+    const { roomId, message, userName, imageData } = data;
     
     // 서버에서 직접 강의자 여부 확인
     const room = rooms[roomId];
@@ -209,9 +209,10 @@ io.on('connection', (socket) => {
       userName: userName,
       message: message,
       timestamp: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
-      isInstructor: isInstructor
+      isInstructor: isInstructor,
+      imageData: imageData
     });
-    console.log(`💬 메시지: ${userName} - ${message}${isInstructor ? ' [강의자]' : ''}`);
+    console.log(`💬 메시지: ${userName} - ${message}${isInstructor ? ' [강의자]' : ''}${imageData ? ' [이미지]' : ''}`);
   });
 
   // 방에서 나가기
