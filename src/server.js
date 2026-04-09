@@ -197,7 +197,7 @@ io.on('connection', (socket) => {
       userId: socket.id,
       userName: userName,
       message: message,
-      timestamp: new Date().toLocaleTimeString('ko-KR'),
+      timestamp: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
       isInstructor: isInstructor
     });
     console.log(`💬 메시지: ${userName} - ${message}${isInstructor ? ' [강의자]' : ''}`);
