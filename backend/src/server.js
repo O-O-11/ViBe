@@ -24,7 +24,6 @@ const io = new socketIo(server, {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../../frontend/public')));
 
 // 활성 사용자 저장소
 const users = {};
