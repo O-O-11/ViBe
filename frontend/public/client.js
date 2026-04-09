@@ -10,7 +10,7 @@ const RTCConfig = {
 // 백엔드 서버 URL 설정
 const BACKEND_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:3000' 
-    : window.location.protocol + '//' + window.location.host;
+    : 'https://vibe-production-6c36.up.railway.app';
 
 // 전역 변수
 const state = {
