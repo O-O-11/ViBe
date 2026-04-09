@@ -108,6 +108,7 @@ io.on('connection', (socket) => {
         instructorId: socket.id,
         createdAt: Date.now()
       };
+      console.log(`📍 새 방 생성: ${roomId}, 강의자: ${socket.id}`);
     }
 
     rooms[roomId].users.push({
@@ -115,6 +116,8 @@ io.on('connection', (socket) => {
       name: userName,
       isInstructor: rooms[roomId].instructorId === socket.id
     });
+
+    console.log(`🚪 사용자 합류: ${userName}(${socket.id})이 방 ${roomId}에 입장, 강의자: ${rooms[roomId].instructorId === socket.id}`);
 
     // 방의 다른 사용자들에게 새 사용자 입장 알림
     socket.broadcast.to(roomId).emit('user-joined', {
@@ -129,8 +132,6 @@ io.on('connection', (socket) => {
       users: rooms[roomId].users.filter(u => u.id !== socket.id),
       isUserInstructor: rooms[roomId].instructorId === socket.id
     });
-
-    console.log(`🚪 사용자 합류: ${userName}이 방 ${roomId}에 입장`);
   });
 
   // WebRTC SDP 제안 처리
@@ -185,13 +186,21 @@ io.on('connection', (socket) => {
   // 채팅 메시지
   socket.on('send-message', (data) => {
     const { roomId, message, userName } = data;
+    
+    // 서버에서 직접 강의자 여부 확인
+    const room = rooms[roomId];
+    const isInstructor = room && room.instructorId === socket.id;
+    
+    console.log(`[채팅 디버그] roomId: ${roomId}, socketId: ${socket.id}, instructorId: ${room?.instructorId}, isInstructor: ${isInstructor}`);
+    
     io.to(roomId).emit('receive-message', {
       userId: socket.id,
       userName: userName,
       message: message,
-      timestamp: new Date().toLocaleTimeString('ko-KR')
+      timestamp: new Date().toLocaleTimeString('ko-KR'),
+      isInstructor: isInstructor
     });
-    console.log(`💬 메시지: ${userName} - ${message}`);
+    console.log(`💬 메시지: ${userName} - ${message}${isInstructor ? ' [강의자]' : ''}`);
   });
 
   // 방에서 나가기
