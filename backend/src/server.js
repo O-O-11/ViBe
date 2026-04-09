@@ -15,14 +15,39 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS 허용 도메인 설정
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://vibe-classroom.netlify.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 const io = new socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "*",
-    methods: ["GET", "POST"]
+    origin: function(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS blocked'));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
-app.use(cors());
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS blocked'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // 활성 사용자 저장소
