@@ -683,6 +683,8 @@ function sendChatMessage() {
 
     if (!message) return;
 
+    console.log(`[채팅 전송] 강의자 여부: ${state.isInstructor}, 사용자명: ${state.userName}`);
+
     state.socket.emit('send-message', {
         roomId: state.roomId,
         message: message,
@@ -694,6 +696,8 @@ function sendChatMessage() {
 }
 
 function addChatMessage(userName, message, timestamp, isInstructor = false) {
+    console.log(`[채팅 수신] 사용자: ${userName}, 강의자: ${isInstructor}, 메시지: ${message}`);
+    
     const messagesContainer = document.getElementById('chat-messages');
 
     const messageEl = document.createElement('div');
@@ -703,6 +707,7 @@ function addChatMessage(userName, message, timestamp, isInstructor = false) {
     header.className = 'chat-message-header';
     
     if (isInstructor) {
+        console.log(`[강의자 태그 추가] ${userName}`);
         header.innerHTML = `${userName} <span class="instructor-badge">강의자</span>`;
     } else {
         header.textContent = userName;
