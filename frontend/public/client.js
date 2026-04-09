@@ -217,8 +217,8 @@ function setupSocketEvents() {
 
     // 채팅 메시지 받음
     document.addEventListener('socket-chat-message', (e) => {
-        const { userName, message, timestamp } = e.detail;
-        addChatMessage(userName, message, timestamp);
+        const { userName, message, timestamp, isInstructor } = e.detail;
+        addChatMessage(userName, message, timestamp, isInstructor);
     });
 }
 
@@ -283,8 +283,8 @@ function initializeSocket() {
 
     // 채팅 메시지
     state.socket.on('receive-message', (data) => {
-        const { userName, message, timestamp } = data;
-        const event = new CustomEvent('socket-chat-message', { detail: { userName, message, timestamp } });
+        const { userName, message, timestamp, isInstructor } = data;
+        const event = new CustomEvent('socket-chat-message', { detail: { userName, message, timestamp, isInstructor } });
         document.dispatchEvent(event);
     });
 }
@@ -686,13 +686,14 @@ function sendChatMessage() {
     state.socket.emit('send-message', {
         roomId: state.roomId,
         message: message,
-        userName: state.userName
+        userName: state.userName,
+        isInstructor: state.isInstructor
     });
 
     input.value = '';
 }
 
-function addChatMessage(userName, message, timestamp) {
+function addChatMessage(userName, message, timestamp, isInstructor = false) {
     const messagesContainer = document.getElementById('chat-messages');
 
     const messageEl = document.createElement('div');
@@ -700,7 +701,12 @@ function addChatMessage(userName, message, timestamp) {
 
     const header = document.createElement('div');
     header.className = 'chat-message-header';
-    header.textContent = userName;
+    
+    if (isInstructor) {
+        header.innerHTML = `${userName} <span class="instructor-badge">강의자</span>`;
+    } else {
+        header.textContent = userName;
+    }
 
     const content = document.createElement('div');
     content.textContent = message;
@@ -719,7 +725,7 @@ function addChatMessage(userName, message, timestamp) {
 
 // ========== 참여자 관리 ==========
 function updateParticipantCount() {
-    const count = Object.keys(state.remoteUsers).length + 1; // +1 자신
+    const count = document.getElementById('participants-list').children.length;
     document.getElementById('participant-count').textContent = count;
 }
 
