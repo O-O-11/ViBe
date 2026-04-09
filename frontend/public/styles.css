@@ -9,6 +9,7 @@ body {
     background: #1a1a1a;
     color: #fff;
     overflow: hidden;
+    zoom: 67%;
 }
 
 /* 스크린 컨테이너 */
