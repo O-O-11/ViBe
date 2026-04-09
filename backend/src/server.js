@@ -184,13 +184,17 @@ io.on('connection', (socket) => {
 
   // 채팅 메시지
   socket.on('send-message', (data) => {
-    const { roomId, message, userName, isInstructor } = data;
+    const { roomId, message, userName } = data;
+    
+    // 서버에서 직접 강의자 여부 확인
+    const isInstructor = rooms[roomId] && rooms[roomId].instructorId === socket.id;
+    
     io.to(roomId).emit('receive-message', {
       userId: socket.id,
       userName: userName,
       message: message,
       timestamp: new Date().toLocaleTimeString('ko-KR'),
-      isInstructor: isInstructor || false
+      isInstructor: isInstructor
     });
     console.log(`💬 메시지: ${userName} - ${message}${isInstructor ? ' [강의자]' : ''}`);
   });
