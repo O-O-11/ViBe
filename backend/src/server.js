@@ -246,8 +246,8 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`\n🚀 ViBe 비디오 회의 서버 시작: http://localhost:${PORT}\n`);
-  console.log(`📍 API Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`📍 Question Refinement API: POST http://localhost:${PORT}/api/refine-question\n`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 ViBe 비디오 회의 서버 시작: http://0.0.0.0:${PORT}\n`);
+  console.log(`📍 API Health Check: http://0.0.0.0:${PORT}/api/health`);
+  console.log(`📍 Question Refinement API: POST http://0.0.0.0:${PORT}/api/refine-question\n`);
 });
