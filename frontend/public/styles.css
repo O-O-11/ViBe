@@ -4,12 +4,15 @@
     box-sizing: border-box;
 }
 
+html {
+    font-size: 80%;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: #1a1a1a;
     color: #fff;
     overflow: hidden;
-    zoom: 67%;
 }
 
 /* 스크린 컨테이너 */
