@@ -1688,22 +1688,16 @@ function submitAnswerFromChat(answer) {
     state.hasAnsweredQuiz = true;
     state.quizAnswers[state.socket.id] = answer;
 
-    // UI: 버튼 비활성화
+    // UI: 버튼 비활성화 및 선택된 버튼 강조 표시
     const chatQuizBtns = document.querySelectorAll('.chat-quiz-btn');
     chatQuizBtns.forEach(btn => {
         btn.disabled = true;
-        btn.style.opacity = '0.5';
+        if (btn.classList.contains(answer === 'O' ? 'o-btn' : 'x-btn')) {
+            btn.classList.add('selected');
+        } else {
+            btn.style.opacity = '0.3';
+        }
     });
-
-    // 응답한 버튼 강조
-    const selectedBtn = answer === 'O' 
-        ? document.querySelector('.chat-quiz-btn.o-btn')
-        : document.querySelector('.chat-quiz-btn.x-btn');
-    
-    if (selectedBtn) {
-        selectedBtn.style.background = answer === 'O' ? '#4ade80' : '#ef4444';
-        selectedBtn.style.color = answer === 'O' ? '#0d0d0d' : '#fff';
-    }
 
     showNotification(`${answer}를 선택했습니다 ✅`, 'success');
 }

@@ -1140,6 +1140,25 @@ body {
     gap: 12px;
 }
 
+.chat-quiz-btn {
+    background: transparent;
+    border: none;
+    font-size: 32px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+}
+
+.chat-quiz-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.chat-quiz-btn.selected {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px currentColor);
+}
+
 .quiz-answer-choice {
     flex: 1;
     padding: 12px 24px;
