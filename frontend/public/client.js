@@ -135,19 +135,29 @@ async function joinRoom(userName, roomId) {
 function setupSocketEvents() {
     // 다른 사용자가 입장했을 때
     document.addEventListener('socket-user-joined', (e) => {
-        const { userId, userName, isInstructor } = e.detail;
+        const { userId, userName, isInstructor, totalUsers } = e.detail;
         console.log(`✅ ${userName}이 입장했습니다`);
         showNotification(`${userName}이 입장했습니다`);
-        updateParticipantCount();
+        
+        // Backend에서 보낸 totalUsers 직접 사용
+        if (totalUsers !== undefined) {
+            document.getElementById('participant-count').textContent = totalUsers;
+        } else {
+            updateParticipantCount();
+        }
+        
         addParticipantToList(userId, userName, isInstructor);
 
-        // 오퍼 생성 (기존 사용자가 먼저 오퍼 생성)
-        createOffer(userId, userName);
+        // ✅ 수정: 내가 Offer 담당자인 경우만 Offer 생성
+        // (Socket ID 비교로 한쪽만 Offer 보냄 - 신호 교환 충돌 방지)
+        if (shouldInitiateOffer(userId)) {
+            createOffer(userId, userName);
+        }
     });
 
     // 기존 사용자 목록 받음
     document.addEventListener('socket-existing-users', (e) => {
-        const { users, isUserInstructor } = e.detail;
+        const { users, isUserInstructor, totalUsers } = e.detail;
         console.log('기존 사용자:', users);
         
         // 현재 사용자가 강의자인지 설정
@@ -158,16 +168,25 @@ function setupSocketEvents() {
             document.getElementById('instructor-badge-container').style.display = 'flex';
         }
         
+        // ✅ 수정: Backend에서 보낸 totalUsers 직접 사용 (또는 계산)
+        let total = totalUsers;
+        if (total === undefined) {
+            // totalUsers가 없으면 직접 계산: 자신 + 기존 사용자
+            total = 1 + users.length;
+        }
+        document.getElementById('participant-count').textContent = total;
+        
         // 자신을 참여자 목록에 먼저 추가
         addParticipantToList(state.socket.id, state.userName, state.isInstructor);
         
         // 기존 사용자 추가
         users.forEach(user => {
             addParticipantToList(user.id, user.name, user.isInstructor);
-            createOffer(user.id, user.name);
+            
+            // ✅ 수정: 기존 사용자들은 나에게 Offer를 보낼 것이므로
+            // 나는 Answer만 기대함 (Offer는 보내지 않음)
+            // 이미 방에 있던 사용자들이 Offer 담당자임
         });
-        
-        updateParticipantCount();
     });
 
     // 오퍼 받음
@@ -192,11 +211,18 @@ function setupSocketEvents() {
 
     // 사용자가 떠남
     document.addEventListener('socket-user-left', (e) => {
-        const { userId, userName } = e.detail;
+        const { userId, userName, totalUsers } = e.detail;
         console.log(`👋 ${userName}이 퇴장했습니다`);
         showNotification(`${userName}이 퇴장했습니다`);
         removeRemoteUser(userId);
-        updateParticipantCount();
+        
+        // ✅ 수정: Backend에서 보낸 totalUsers 직접 사용
+        if (totalUsers !== undefined) {
+            document.getElementById('participant-count').textContent = totalUsers;
+        } else {
+            updateParticipantCount();
+        }
+        
         removeParticipantFromList(userId);
     });
 
@@ -376,6 +402,13 @@ function initializeConferenceScreen() {
 }
 
 // ========== WebRTC 연결 ==========
+// Offer 생성 담당자 결정 (상대방과의 통신 중복 방지)
+function shouldInitiateOffer(remoteUserId) {
+    // 내 ID가 상대방 ID보다 작으면 내가 Offer 보냄
+    // 일관성 있는 결정으로 양쪽 모두 Offer 보내는 것 방지
+    return state.socket.id < remoteUserId;
+}
+
 async function createOffer(remoteUserId, remoteUserName) {
     try {
         const peerConnection = createPeerConnection(remoteUserId, remoteUserName);
@@ -415,15 +448,12 @@ async function handleOffer(remoteUserId, remoteUserName, offer) {
 
         if (!peerConnection) {
             peerConnection = createPeerConnection(remoteUserId, remoteUserName);
-            // 로컬 스트림 추가
-            console.log(`[handleOffer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
-            state.localStream.getTracks().forEach((track, idx) => {
-                console.log(`[handleOffer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
-                peerConnection.addTrack(track, state.localStream);
-            });
+            // ✅ 수정: Offer 받는 쪽에서는 track을 추가하지 않음
+            // (Offer 보내는 쪽에서 이미 addTrack 했음)
+            // 단, Answer 생성할 때 자동으로 양방향 스트림이 설정됨
         }
 
-        await peerConnection.setRemoteDescription(offer);
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
         // Answer 생성
         const answer = await peerConnection.createAnswer();
