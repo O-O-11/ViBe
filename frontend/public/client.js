@@ -1568,7 +1568,8 @@ function renameUsername() {
 function createQuiz() {
     const questionInput = document.getElementById('quiz-question-input');
     const question = questionInput.value.trim();
-    const correctAnswerRadios = document.querySelectorAll('input[name="quiz-answer"]');
+    // ✅ 수정: 모든 quiz-answer 라디오를 선택하지 않고, 특정 ID만 선택
+    const correctAnswerRadios = document.querySelectorAll('input[name="quiz-answer-form"]');
     let correctAnswer = null;
     
     for (const radio of correctAnswerRadios) {
@@ -1626,6 +1627,7 @@ function createQuiz() {
         correctAnswer: correctAnswer,
         timestamp: Date.now(),
         instructorName: state.userName,
+        quizNumber: state.quizHistory.length + 1,
         oCount: 0,
         xCount: 0
     };
@@ -1697,11 +1699,6 @@ function submitAnswerFromChat(answer) {
         return;
     }
 
-    if (state.hasAnsweredQuiz) {
-        showNotification('이미 응답했습니다', 'info');
-        return;
-    }
-
     const answerData = {
         roomId: state.roomId,
         userId: state.socket.id,
@@ -1714,12 +1711,25 @@ function submitAnswerFromChat(answer) {
     state.socket.emit('quiz-answer', answerData);
     console.log('📤 퀴즈 응답 제출 (채팅):', answerData);
 
-    // 로컬 상태 업데이트
-    state.hasAnsweredQuiz = true;
+    // ✅ 수정: 이전 응답이 있다면 이전 카운트 감소
+    const quizEntry = state.quizHistory.find(q => q.quizId === state.currentQuiz.quizId);
+    if (quizEntry && state.quizAnswers[state.socket.id]) {
+        const previousAnswer = state.quizAnswers[state.socket.id];
+        if (previousAnswer === 'O') {
+            quizEntry.oCount = Math.max(0, quizEntry.oCount - 1);
+        } else {
+            quizEntry.xCount = Math.max(0, quizEntry.xCount - 1);
+        }
+        console.log(`✅ 이전 응답 취소: ${previousAnswer}`);
+    }
+
+    // 로컬 상태 업데이트 (처음 응답 시에만)
+    if (!state.hasAnsweredQuiz) {
+        state.hasAnsweredQuiz = true;
+    }
     state.quizAnswers[state.socket.id] = answer;
 
     // ✅ 출제 기록의 응답 카운트 증가
-    const quizEntry = state.quizHistory.find(q => q.quizId === state.currentQuiz.quizId);
     if (quizEntry) {
         if (answer === 'O') {
             quizEntry.oCount += 1;
@@ -1737,14 +1747,15 @@ function submitAnswerFromChat(answer) {
         console.log(`✅ 퀴즈 응답 카운트 업데이트: O=${quizEntry.oCount}, X=${quizEntry.xCount}`);
     }
 
-    // UI: 버튼 비활성화 및 선택된 버튼 강조 표시
+    // UI: 선택된 버튼만 강조 표시 (비활성화 제거)
     const chatQuizBtns = document.querySelectorAll('.chat-quiz-btn');
     chatQuizBtns.forEach(btn => {
-        btn.disabled = true;
+        btn.disabled = false;  // ✅ 버튼 활성화 유지
+        btn.style.opacity = '1';  // ✅ 투명도 제거
         if (btn.classList.contains(answer === 'O' ? 'o-btn' : 'x-btn')) {
             btn.classList.add('selected');
         } else {
-            btn.style.opacity = '0.3';
+            btn.classList.remove('selected');
         }
     });
 
@@ -1782,6 +1793,38 @@ function displayQuizResults(results) {
     document.getElementById('result-o-bar').style.width = oPercentage + '%';
     document.getElementById('result-x-bar').style.width = xPercentage + '%';
 
+    // ✅ 채팅창의 O/X 버튼 옆에 카운트 표시
+    const chatMessagesContainer = document.getElementById('chat-messages');
+    const quizButtonContainers = chatMessagesContainer.querySelectorAll('.chat-quiz-buttons');
+    if (quizButtonContainers.length > 0) {
+        // 가장 최근의 퀴즈 버튼 컨테이너 선택
+        const lastQuizButtonContainer = quizButtonContainers[quizButtonContainers.length - 1];
+        const oBtns = lastQuizButtonContainer.querySelectorAll('.o-btn');
+        const xBtns = lastQuizButtonContainer.querySelectorAll('.x-btn');
+        
+        // O 버튼 옆에 카운트 추가
+        if (oBtns.length > 0) {
+            let oCountElement = oBtns[0].nextElementSibling;
+            if (!oCountElement || !oCountElement.classList.contains('quiz-count')) {
+                oCountElement = document.createElement('span');
+                oCountElement.className = 'quiz-count o-count';
+                oBtns[0].after(oCountElement);
+            }
+            oCountElement.textContent = `(${results.oCount}명)`;
+        }
+        
+        // X 버튼 옆에 카운트 추가
+        if (xBtns.length > 0) {
+            let xCountElement = xBtns[0].nextElementSibling;
+            if (!xCountElement || !xCountElement.classList.contains('quiz-count')) {
+                xCountElement = document.createElement('span');
+                xCountElement.className = 'quiz-count x-count';
+                xBtns[0].after(xCountElement);
+            }
+            xCountElement.textContent = `(${results.xCount}명)`;
+        }
+    }
+
     // 채팅에 결과 메시지 추가
     addChatMessage('시스템', '📊 퀴즈 결과', `⭕ O: ${results.oCount}명 | ❌ X: ${results.xCount}명`, Date.now(), false);
 }
@@ -1794,16 +1837,27 @@ function addQuizToHistory(quizEntry) {
         return;
     }
 
-    const { quizId, question, correctAnswer, timestamp, oCount = 0, xCount = 0 } = quizEntry;
+    const { quizId, question, correctAnswer, timestamp, quizNumber = '?', oCount = 0, xCount = 0 } = quizEntry;
     const timeString = new Date(timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
     
     const quizItem = document.createElement('div');
     quizItem.className = 'quiz-history-item';
     quizItem.setAttribute('data-quiz-id', quizId);
+    // ✅ 수정: 각 퀴즈마다 고유한 라디오 버튼 name 사용
     quizItem.innerHTML = `
         <div class="quiz-history-content">
-            <div class="quiz-history-question">❓ ${escapeHtml(question)}</div>
-            <div class="quiz-history-answer">정답: ${correctAnswer === 'O' ? '⭕ O' : '❌ X'}</div>
+            <div class="quiz-history-question">${quizNumber}. ${escapeHtml(question)}</div>
+            <div class="quiz-history-answer">
+                정답: 
+                <label style="display: inline-flex; align-items: center; gap: 8px; margin-right: 12px; cursor: pointer;">
+                    <input type="radio" name="quiz-answer-${quizId}" value="O" ${correctAnswer === 'O' ? 'checked' : ''}>
+                    ⭕ O
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="radio" name="quiz-answer-${quizId}" value="X" ${correctAnswer === 'X' ? 'checked' : ''}>
+                    ❌ X
+                </label>
+            </div>
             <div class="quiz-history-time">${timeString}</div>
         </div>
         <button class="quiz-result-btn" onclick="showQuizResult('${quizId}')">

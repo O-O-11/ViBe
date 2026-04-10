@@ -1159,6 +1159,15 @@ body {
     filter: drop-shadow(0 0 8px currentColor);
 }
 
+/* ✅ 퀴즈 응답 카운트 스타일 */
+.quiz-count {
+    font-size: 12px;
+    color: #a0aec0;
+    margin-left: 4px;
+    display: inline-block;
+    font-weight: 600;
+}
+
 .quiz-answer-choice {
     flex: 1;
     padding: 12px 24px;
