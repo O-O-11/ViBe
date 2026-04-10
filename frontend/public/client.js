@@ -116,11 +116,7 @@ async function joinRoom(userName, roomId) {
 
         // 소켓 연결 및 방 참여
         if (!state.socket) {
-            state.socket = io(BACKEND_URL, {
-                query: {
-                    roomId: roomId
-                }
-            });
+            state.socket = io(BACKEND_URL);
         }
 
         state.socket.emit('join-room', {
@@ -437,6 +433,7 @@ async function createOffer(remoteUserId, remoteUserName, remoteUserIsInstructor 
             to: remoteUserId,
             from: state.socket.id,
             fromName: state.userName,
+            fromIsInstructor: state.isInstructor,
             offer: offer
         });
 

@@ -172,20 +172,14 @@ io.on('connection', (socket) => {
 
   // WebRTC SDP 제안 처리
   socket.on('offer', (data) => {
-    const { to, offer, from, fromName } = data;
-    const roomId = socket.handshake.query.roomId;
-    const room = rooms[roomId];
-    const fromIsInstructor = room && room.instructorId === from;
-    
-    console.log(`[Offer] roomId: ${roomId}, from: ${from}, to: ${to}, room존재: ${!!room}, instructorId: ${room?.instructorId}, fromIsInstructor: ${fromIsInstructor}`);
-    
+    const { to, offer, from, fromName, fromIsInstructor } = data;
     io.to(to).emit('offer', {
       from: from,
       fromName: fromName,
       fromIsInstructor: fromIsInstructor,
       offer: offer
     });
-    console.log(`📤 Offer 전송: ${from} -> ${to}`);
+    console.log(`📤 Offer 전송: ${from} -> ${to}, 강의자: ${fromIsInstructor}`);
   });
 
   // WebRTC SDP 응답 처리
