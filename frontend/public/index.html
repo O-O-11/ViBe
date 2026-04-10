@@ -101,39 +101,6 @@
                     <button class="tab-btn" data-tab="chat">
                         💬 채팅
                     </button>
-                    <button class="tab-btn" data-tab="quiz" style="display: none;">
-                        ❓ 퀴즈
-                    </button>
-                </div>
-
-                <!-- ✅ 강의자전용 퀴즈 출제 패널 (사이드바 맨 위) -->
-                <div id="instructor-quiz-panel" class="instructor-quiz-panel" style="display: none;">
-                    <div class="quiz-panel-header">
-                        <h3>❓ 퀴즈 출제</h3>
-                    </div>
-                    <div class="quiz-panel-content">
-                        <input 
-                            type="text" 
-                            id="quiz-problem-input" 
-                            placeholder="퀴즈 문제를 입력하세요"
-                            maxlength="200"
-                            class="quiz-input"
-                        >
-                        <div class="quiz-answer-section">
-                            <span class="quiz-answer-label">정답:</span>
-                            <div class="quiz-radio-group">
-                                <label class="quiz-radio-label">
-                                    <input type="radio" name="quiz-answer" value="O" class="quiz-radio">
-                                    <span>⭕ O</span>
-                                </label>
-                                <label class="quiz-radio-label">
-                                    <input type="radio" name="quiz-answer" value="X" class="quiz-radio">
-                                    <span>❌ X</span>
-                                </label>
-                            </div>
-                        </div>
-                        <button id="create-quiz-btn" class="btn-primary quiz-create-btn">출제</button>
-                    </div>
                 </div>
 
                 <!-- 참여자 탭 -->
@@ -193,68 +160,6 @@
                         <button id="send-message-btn" class="btn-primary">
                             전송
                         </button>
-                    </div>
-                </div>
-
-                <!-- 퀴즈 탭 -->
-                <div id="quiz-tab" class="tab-content">
-                    <div id="quiz-container">
-                        <!-- 강의자 입력 영역 (강의자만 보임) -->
-                        <div id="quiz-creator-section" class="quiz-section" style="display: none;">
-                            <h3>❓ 퀴즈 출제</h3>
-                            <div class="quiz-input-group">
-                                <input 
-                                    type="text" 
-                                    id="quiz-question-input" 
-                                    placeholder="O, X 퀴즈 문제를 입력하세요"
-                                    maxlength="200"
-                                >
-                                <button id="submit-quiz-btn" class="btn-primary quiz-btn">출제</button>
-                            </div>
-                        </div>
-
-                        <!-- 현재 퀴즈 표시 영역 -->
-                        <div id="current-quiz-display" class="quiz-display" style="display: none;">
-                            <div class="quiz-question-area">
-                                <p id="quiz-question-text" class="quiz-question"></p>
-                                <div id="quiz-buttons-area" class="quiz-buttons">
-                                    <button id="quiz-o-btn" class="quiz-btn quiz-option-btn">⭕ O</button>
-                                    <button id="quiz-x-btn" class="quiz-btn quiz-option-btn">❌ X</button>
-                                </div>
-                            </div>
-                            <div id="student-response-status" class="student-response-status">
-                                ⏳ 응답 대기 중...
-                            </div>
-                            <!-- 강의자용 결과보기 버튼 -->
-                            <div id="instructor-result-button-area" class="instructor-result-button-area" style="display: none; padding-top: 12px;">
-                                <button id="show-quiz-results-btn" class="btn-primary quiz-btn">📊 결과보기</button>
-                            </div>
-                        </div>
-
-                        <!-- 강의자용 결과 표시 영역 -->
-                        <div id="quiz-results-section" class="quiz-results" style="display: none;">
-                            <h3>📊 퀴즈 결과</h3>
-                            <div class="quiz-result-item">
-                                <div class="result-label">⭕ O를 선택</div>
-                                <div class="result-bar">
-                                    <div id="result-o-bar" class="result-fill" style="width: 0%"></div>
-                                </div>
-                                <div class="result-count"><span id="result-o-count">0</span>명</div>
-                            </div>
-                            <div class="quiz-result-item">
-                                <div class="result-label">❌ X를 선택</div>
-                                <div class="result-bar">
-                                    <div id="result-x-bar" class="result-fill" style="width: 0%"></div>
-                                </div>
-                                <div class="result-count"><span id="result-x-count">0</span>명</div>
-                            </div>
-                            <button id="close-quiz-btn" class="btn-secondary quiz-btn">다음 퀴즈</button>
-                        </div>
-
-                        <!-- 퀴즈 없음 상태 -->
-                        <div id="no-quiz-message" class="quiz-empty-state">
-                            <p>아직 출제된 퀴즈가 없습니다.</p>
-                        </div>
                     </div>
                 </div>
             </div>
