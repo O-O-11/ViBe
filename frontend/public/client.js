@@ -815,6 +815,9 @@ function handleScreenShareEnd(userId) {
 // ========== 채팅 ==========
 let selectedImageData = null;
 
+// ✅ 추가: 참석 상태 추적 (강의자 전용)
+const attendanceStatus = {};
+
 function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
     const message = input.value.trim();
@@ -961,14 +964,81 @@ function addParticipantToList(userId, userName, isInstructor = false) {
         participantEl.id = `participant-${userId}`;
         participantEl.className = 'participant-item';
         
+        // 참여자 이름 + 강의자 배지
+        const nameContainer = document.createElement('div');
+        nameContainer.className = 'participant-name-container';
+        nameContainer.textContent = userName;
+        
         if (isInstructor) {
-            participantEl.innerHTML = `${userName} <span class="instructor-badge">강의자</span>`;
-        } else {
-            participantEl.textContent = userName;
+            const badge = document.createElement('span');
+            badge.className = 'instructor-badge';
+            badge.textContent = '강의자';
+            nameContainer.appendChild(badge);
+        }
+        
+        participantEl.appendChild(nameContainer);
+
+        // ✅ 추가: 강의자에게만 출석 상태 버튼 표시
+        if (state.isInstructor && !isInstructor) {
+            // 강의자가 다른 참여자를 보는 경우: 출석 버튼 표시
+            const attendanceContainer = document.createElement('div');
+            attendanceContainer.className = 'attendance-buttons';
+            attendanceContainer.id = `attendance-${userId}`;
+
+            // 출석 버튼
+            const presentBtn = document.createElement('button');
+            presentBtn.className = 'attendance-btn present-btn';
+            presentBtn.textContent = '출석';
+            presentBtn.addEventListener('click', () => setAttendance(userId, 'present'));
+
+            // 결석 버튼
+            const absentBtn = document.createElement('button');
+            absentBtn.className = 'attendance-btn absent-btn';
+            absentBtn.textContent = '결석';
+            absentBtn.addEventListener('click', () => setAttendance(userId, 'absent'));
+
+            // 지각 버튼
+            const lateBtn = document.createElement('button');
+            lateBtn.className = 'attendance-btn late-btn';
+            lateBtn.textContent = '지각';
+            lateBtn.addEventListener('click', () => setAttendance(userId, 'late'));
+
+            attendanceContainer.appendChild(presentBtn);
+            attendanceContainer.appendChild(absentBtn);
+            attendanceContainer.appendChild(lateBtn);
+            participantEl.appendChild(attendanceContainer);
+
+            // 초기 상태: 모든 버튼 회색
+            attendanceStatus[userId] = null;
         }
 
         listEl.appendChild(participantEl);
     }
+}
+
+// ✅ 추가: 출석 상태 설정 함수
+function setAttendance(userId, status) {
+    attendanceStatus[userId] = status;
+
+    const attendanceContainer = document.getElementById(`attendance-${userId}`);
+    if (!attendanceContainer) return;
+
+    // 모든 버튼 초기화 (회색)
+    const allBtns = attendanceContainer.querySelectorAll('.attendance-btn');
+    allBtns.forEach(btn => {
+        btn.classList.remove('active', 'present', 'absent', 'late');
+    });
+
+    // 선택된 버튼만 활성화
+    if (status === 'present') {
+        attendanceContainer.querySelector('.present-btn').classList.add('active', 'present');
+    } else if (status === 'absent') {
+        attendanceContainer.querySelector('.absent-btn').classList.add('active', 'absent');
+    } else if (status === 'late') {
+        attendanceContainer.querySelector('.late-btn').classList.add('active', 'late');
+    }
+
+    console.log(`[출석 상태] ${userId}: ${status}`);
 }
 
 function removeParticipantFromList(userId) {
@@ -976,6 +1046,9 @@ function removeParticipantFromList(userId) {
     if (participantEl) {
         participantEl.remove();
     }
+    
+    // ✅ 추가: 참석 상태 데이터 삭제
+    delete attendanceStatus[userId];
 }
 
 // ========== 탭 전환 ==========
