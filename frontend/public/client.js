@@ -448,9 +448,13 @@ async function handleOffer(remoteUserId, remoteUserName, offer) {
 
         if (!peerConnection) {
             peerConnection = createPeerConnection(remoteUserId, remoteUserName);
-            // ✅ 수정: Offer 받는 쪽에서는 track을 추가하지 않음
-            // (Offer 보내는 쪽에서 이미 addTrack 했음)
-            // 단, Answer 생성할 때 자동으로 양방향 스트림이 설정됨
+            // ✅ 수정: 양방향 스트림을 위해 track 추가 필요
+            // (Offer 받는 쪽도 자신의 스트림을 전송해야 함)
+            console.log(`[handleOffer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
+            state.localStream.getTracks().forEach((track, idx) => {
+                console.log(`[handleOffer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
+                peerConnection.addTrack(track, state.localStream);
+            });
         }
 
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
