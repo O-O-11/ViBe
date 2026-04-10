@@ -411,7 +411,7 @@ function shouldInitiateOffer(remoteUserId) {
 
 async function createOffer(remoteUserId, remoteUserName, remoteUserIsInstructor = false) {
     try {
-        const peerConnection = createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor);
+        const peerConnection = createPeerConnection(remoteUserId, remoteUserName);
 
         // 로컬 스트림 추가
         console.log(`[Offer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
@@ -448,7 +448,7 @@ async function handleOffer(remoteUserId, remoteUserName, remoteUserIsInstructor,
         let peerConnection = state.peerConnections[remoteUserId];
 
         if (!peerConnection) {
-            peerConnection = createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor);
+            peerConnection = createPeerConnection(remoteUserId, remoteUserName);
             // ✅ 수정: 양방향 스트림을 위해 track 추가 필요
             // (Offer 받는 쪽도 자신의 스트림을 전송해야 함)
             console.log(`[handleOffer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
@@ -518,7 +518,7 @@ async function handleIceCandidate(remoteUserId, candidate) {
     }
 }
 
-function createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor = false) {
+function createPeerConnection(remoteUserId, remoteUserName) {
     const peerConnection = new RTCPeerConnection({
         iceServers: RTCConfig.iceServers
     });
@@ -540,7 +540,7 @@ function createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstruct
     peerConnection.ontrack = (event) => {
         console.log(`🎬 원격 스트림 수신: ${remoteUserId}, track kind: ${event.track.kind}, streams: ${event.streams.length}`);
         if (event.streams && event.streams.length > 0) {
-            handleRemoteStream(remoteUserId, event.streams[0], remoteUserName, remoteUserIsInstructor);
+            handleRemoteStream(remoteUserId, event.streams[0], remoteUserName);
         }
     };
 
@@ -557,7 +557,7 @@ function createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstruct
     return peerConnection;
 }
 
-function handleRemoteStream(remoteUserId, stream, remoteUserName, remoteUserIsInstructor = false) {
+function handleRemoteStream(remoteUserId, stream, remoteUserName) {
     console.log(`[handleRemoteStream] 시작, remoteUserId: ${remoteUserId}, 스트림 트랙 수: ${stream.getTracks().length}`);
     
     // 이미 존재하는 경우 videoElement 리셋 방지
@@ -565,7 +565,6 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName, remoteUserIsIn
         state.remoteUsers[remoteUserId] = {
             stream: stream,
             name: remoteUserName,
-            isInstructor: remoteUserIsInstructor,
             videoElement: null
         };
 
@@ -595,18 +594,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName, remoteUserIsIn
 
             const label = document.createElement('div');
             label.className = 'video-label';
-            
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = remoteUserName;
-            label.appendChild(nameSpan);
-            
-            // 강의자 배지 추가
-            if (remoteUserIsInstructor) {
-                const badge = document.createElement('span');
-                badge.className = 'instructor-badge';
-                badge.textContent = '강의자';
-                label.appendChild(badge);
-            }
+            label.textContent = remoteUserName;
 
             videoContainer.appendChild(video);
             videoContainer.appendChild(label);
