@@ -231,8 +231,8 @@ function setupSocketEvents() {
     });
 
     // 사용자 이름 변경 이벤트
-    state.socket.on('user-renamed', (data) => {
-        const { userId, oldName, newName } = data;
+    document.addEventListener('socket-user-renamed', (e) => {
+        const { userId, oldName, newName } = e.detail;
         console.log(`✏️ ${oldName}이 ${newName}으로 이름 변경`);
         
         // 참여자 목록에서 해당 사용자의 이름 업데이트
@@ -317,6 +317,13 @@ function initializeSocket() {
     // 사용자 퇴장
     state.socket.on('user-left', (data) => {
         const event = new CustomEvent('socket-user-left', { detail: data });
+        document.dispatchEvent(event);
+    });
+
+    // 사용자 이름 변경
+    state.socket.on('user-renamed', (data) => {
+        const { userId, oldName, newName } = data;
+        const event = new CustomEvent('socket-user-renamed', { detail: { userId, oldName, newName } });
         document.dispatchEvent(event);
     });
 
