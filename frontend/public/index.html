@@ -101,9 +101,39 @@
                     <button class="tab-btn" data-tab="chat">
                         💬 채팅
                     </button>
-                    <button class="tab-btn" data-tab="quiz">
+                    <button class="tab-btn" data-tab="quiz" style="display: none;">
                         ❓ 퀴즈
                     </button>
+                </div>
+
+                <!-- ✅ 강의자전용 퀴즈 출제 패널 (사이드바 맨 위) -->
+                <div id="instructor-quiz-panel" class="instructor-quiz-panel" style="display: none;">
+                    <div class="quiz-panel-header">
+                        <h3>❓ 퀴즈 출제</h3>
+                    </div>
+                    <div class="quiz-panel-content">
+                        <input 
+                            type="text" 
+                            id="quiz-problem-input" 
+                            placeholder="퀴즈 문제를 입력하세요"
+                            maxlength="200"
+                            class="quiz-input"
+                        >
+                        <div class="quiz-answer-section">
+                            <span class="quiz-answer-label">정답:</span>
+                            <div class="quiz-radio-group">
+                                <label class="quiz-radio-label">
+                                    <input type="radio" name="quiz-answer" value="O" class="quiz-radio">
+                                    <span>⭕ O</span>
+                                </label>
+                                <label class="quiz-radio-label">
+                                    <input type="radio" name="quiz-answer" value="X" class="quiz-radio">
+                                    <span>❌ X</span>
+                                </label>
+                            </div>
+                        </div>
+                        <button id="create-quiz-btn" class="btn-primary quiz-create-btn">출제</button>
+                    </div>
                 </div>
 
                 <!-- 참여자 탭 -->

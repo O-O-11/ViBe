@@ -433,7 +433,7 @@ io.on('connection', (socket) => {
   // ========== 퀴즈 이벤트 핸들러 ==========
   // 퀴즈 출제
   socket.on('create-quiz', (data) => {
-    const { roomId, question, instructorId, instructorName } = data;
+    const { roomId, question, correctAnswer, instructorId, instructorName } = data;
     
     if (!rooms[roomId]) {
       console.error(`[퀴즈] 방을 찾을 수 없습니다: ${roomId}`);
@@ -449,17 +449,19 @@ io.on('connection', (socket) => {
     // 현재 퀴즈 상태 저장
     rooms[roomId].currentQuiz = {
       question: question,
+      correctAnswer: correctAnswer,
       instructorId: instructorId,
       instructorName: instructorName,
       timestamp: Date.now()
     };
     rooms[roomId].quizAnswers = {};
 
-    console.log(`📝 [퀴즈 출제] 방: ${roomId}, 강의자: ${instructorName}, 문제: ${question}`);
+    console.log(`📝 [퀴즈 출제] 방: ${roomId}, 강의자: ${instructorName}, 문제: ${question}, 정답: ${correctAnswer}`);
 
     // 모든 학생들에게 퀴즈 전송
     io.to(roomId).emit('quiz-created', {
       question: question,
+      correctAnswer: correctAnswer,
       instructorName: instructorName,
       timestamp: rooms[roomId].currentQuiz.timestamp
     });
