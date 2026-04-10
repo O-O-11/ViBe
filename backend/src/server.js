@@ -428,6 +428,99 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ❓ 퀴즈 출제 (quiz-created 이벤트)
+  socket.on('quiz-created', (data) => {
+    const { roomId, question, correctAnswer } = data;
+    
+    if (!rooms[roomId]) {
+      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+    
+    // 현재 퀴즈 저장
+    if (!rooms[roomId].quizzes) {
+      rooms[roomId].quizzes = [];
+    }
+    
+    const quiz = {
+      id: Date.now().toString(),
+      question: question,
+      correctAnswer: correctAnswer,
+      createdBy: socket.id,
+      answers: { O: [], X: [] }
+    };
+    
+    rooms[roomId].quizzes.push(quiz);
+    rooms[roomId].currentQuiz = quiz;
+    
+    console.log(`❓ 퀴즈 출제: "${question}" (정답: ${correctAnswer})`);
+    
+    // 모든 사용자에게 퀴즈 브로드캐스트
+    io.to(roomId).emit('quiz-created', {
+      question: question,
+      correctAnswer: correctAnswer,
+      instructorName: socket.data?.userName || '강의자'
+    });
+  });
+
+  // ❓ 퀴즈 응답 (quiz-answer 이벤트)
+  socket.on('quiz-answer', (data) => {
+    const { roomId, answer, userId, userName } = data;
+    
+    if (!rooms[roomId]) {
+      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+    
+    const currentQuiz = rooms[roomId].currentQuiz;
+    if (!currentQuiz) {
+      console.log(`❌ 진행 중인 퀴즈가 없습니다: ${roomId}`);
+      return;
+    }
+    
+    // 응답 저장
+    if (!currentQuiz.answers[answer]) {
+      currentQuiz.answers[answer] = [];
+    }
+    
+    currentQuiz.answers[answer].push({
+      userId: userId,
+      userName: userName,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log(`✅ 퀴즈 응답: ${userName} - ${answer}`);
+  });
+
+  // ❓ 퀴즈 결과 요청 (quiz-results-request 이벤트)
+  socket.on('quiz-results-request', (data) => {
+    const { roomId } = data;
+    
+    if (!rooms[roomId]) {
+      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+    
+    const currentQuiz = rooms[roomId].currentQuiz;
+    if (!currentQuiz) {
+      console.log(`❌ 진행 중인 퀴즈가 없습니다: ${roomId}`);
+      return;
+    }
+    
+    const oCount = currentQuiz.answers.O ? currentQuiz.answers.O.length : 0;
+    const xCount = currentQuiz.answers.X ? currentQuiz.answers.X.length : 0;
+    
+    console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}`);
+    
+    // 강의자에게만 결과 전송
+    socket.emit('quiz-results-data', {
+      question: currentQuiz.question,
+      oCount: oCount,
+      xCount: xCount,
+      totalAnswers: oCount + xCount
+    });
+  });
+
   // 연결 해제
   socket.on('disconnect', () => {
     console.log(`❌ 사용자 연결 해제: ${socket.id}`);
@@ -458,11 +551,11 @@ io.on('connection', (socket) => {
           io.to(roomId).emit('user-left', {
             userId: socket.id,
             userName: userName,
-            totalUsers: rooms[roomId].users.length
+            totalUsers: rooms[roomId] ? rooms[roomId].users.length : 0
           });
 
           // 방이 비어있으면 삭제
-          if (rooms[roomId].users.length === 0) {
+          if (rooms[roomId] && rooms[roomId].users.length === 0) {
             console.log(`🗑️ 방 삭제 (모두 나감): ${roomId}`);
             delete rooms[roomId];
           }
@@ -472,100 +565,15 @@ io.on('connection', (socket) => {
 
     delete users[socket.id];
   });
-
-  // ❓ 퀴즈 출제
-  socket.on('quiz-submitted', (data) => {
-    const { roomId, quiz } = data;
-    
-    if (!rooms[roomId]) {
-      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
-      return;
-    }
-    
-    console.log(`❓ 퀴즈 출제됨: ${quiz.question}`);
-    console.log(`   정답: ${quiz.correctAnswer}`);
-    
-    // 모든 사용자에게 퀴즈 전송 (강의자 제외)
-    io.to(roomId).emit('quiz-posted', {
-      quiz: quiz
-    });
-  });
-
-  // ❓ 퀴즈 응답
-  socket.on('quiz-response', (data) => {
-    const { roomId, quizId, answer, userId, userName } = data;
-    
-    if (!rooms[roomId]) {
-      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
-      return;
-    }
-    
-    console.log(`✅ 퀴즈 응답: ${userName}(${userId}) - ${answer}`);
-    
-    // Backend에서 응답 집계
-    if (!rooms[roomId].quizResponses) {
-      rooms[roomId].quizResponses = {};
-    }
-    
-    if (!rooms[roomId].quizResponses[quizId]) {
-      rooms[roomId].quizResponses[quizId] = { O: [], X: [] };
-    }
-    
-    rooms[roomId].quizResponses[quizId][answer].push({
-      userId: userId,
-      userName: userName,
-      timestamp: new Date().toISOString()
-    });
-    
-    // 응답 확인 알림 전송 (본인과 강의자만)
-    socket.emit('quiz-response-confirmed', {
-      quizId: quizId,
-      answer: answer
-    });
-    
-    // 강의자에게 응답 현황 전송
-    const room = rooms[roomId];
-    const instructor = room.users.find(u => u.isInstructor);
-    if (instructor) {
-      io.to(instructor.id).emit('quiz-response-update', {
-        quizId: quizId,
-        responses: room.quizResponses[quizId]
-      });
-    }
-  });
-
-  // ❓ 퀴즈 결과 조회
-  socket.on('quiz-results-request', (data) => {
-    const { roomId, quizId } = data;
-    
-    if (!rooms[roomId]) {
-      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
-      return;
-    }
-    
-    const responses = rooms[roomId].quizResponses?.[quizId] || { O: [], X: [] };
-    
-    console.log(`📊 퀴즈 ${quizId} 결과:`);
-    console.log(`   O: ${responses.O.length}명`);
-    console.log(`   X: ${responses.X.length}명`);
-    
-    socket.emit('quiz-results', {
-      quizId: quizId,
-      results: {
-        O: responses.O.length,
-        X: responses.X.length,
-        participants: responses
-      }
-    });
-  });
 });
 
+// ========== Server Startup ==========
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   const now = new Date().toISOString();
-  console.log(`\n🚀 ViBe 비디오 회의 서버 시작: http://0.0.0.0:${PORT}`);
-  console.log(`⏰ 시작 시각: ${now}\n`);
+  console.log(`\n🚀 ViBe 비디오 강의실 시스템 시작: http://0.0.0.0:${PORT}`);
+  console.log(`⏰ 시작 시간: ${now}\n`);
   console.log(`📍 API Health Check: http://0.0.0.0:${PORT}/api/health`);
   console.log(`📍 Question Refinement API: POST http://0.0.0.0:${PORT}/api/refine-question\n`);
-  console.log(`🔍 연결된 Socket.IO 핸들러: activate-anonymous-mode, check-attendance, quiz-* 등\n`);
+  console.log(`🔌 지원 Socket.IO 이벤트: register-user, join-room, check-attendance, activate-anonymous-mode, quiz-*\n`);
 });
