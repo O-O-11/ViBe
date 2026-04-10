@@ -1205,7 +1205,9 @@ function switchTab(e) {
 function activateAnonymousMode() {
     console.log('🔵 activateAnonymousMode 함수 호출됨');
     console.log('📊 state.isInstructor:', state.isInstructor);
-    console.log('📊 state.socket:', state.socket ? 'Connected' : 'Not connected');
+    console.log('📊 state.socket:', state.socket ? '존재함' : 'null');
+    console.log('📊 state.socket.connected:', state.socket?.connected);
+    console.log('📊 state.socket.id:', state.socket?.id);
     console.log('📊 state.roomId:', state.roomId);
     
     if (!state.isInstructor) {
@@ -1215,15 +1217,29 @@ function activateAnonymousMode() {
     }
 
     if (!state.socket) {
-        console.error('❌ Socket이 연결되지 않았습니다!');
+        console.error('❌ Socket 객체가 null입니다!');
         showNotification('Socket 연결 오류', 'error');
+        return;
+    }
+
+    if (!state.socket.connected) {
+        console.error('❌ Socket이 연결되지 않았습니다!', state.socket.connected);
+        showNotification('Socket 연결 끊김', 'error');
         return;
     }
 
     // Backend에 익명 모드 활성화 요청
     console.log('📤 Backend에 activate-anonymous-mode 전송 중...');
+    console.log('📡 roomId:', state.roomId);
+    
     state.socket.emit('activate-anonymous-mode', {
         roomId: state.roomId
+    }, (error) => {
+        if (error) {
+            console.error('❌ emit 에러:', error);
+        } else {
+            console.log('✅ emit 전송 성공');
+        }
     });
 
     console.log('✅ 익명 모드 활성화 요청 전송 완료: ' + state.roomId);
