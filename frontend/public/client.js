@@ -350,8 +350,9 @@ function initializeSocket() {
 
 // ========== 회의 화면 ==========
 function initializeConferenceScreen() {
-    // 소켓 초기화
+    // 소켓 초기화 및 이벤트 세팅
     initializeSocket();
+    setupSocketEvents();
 
     // 비디오 토글
     document.getElementById('toggle-video-btn').addEventListener('click', toggleVideo);
