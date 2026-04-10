@@ -280,7 +280,7 @@ io.on('connection', (socket) => {
 
   // ✅ 익명 모드 활성화 이벤트 (버튼 클릭 시)
   console.log('✅ [시스템] activate-anonymous-mode 핸들러 등록됨 - socket:', socket.id);
-  socket.on('activate-anonymous-mode', (data) => {
+  socket.on('activate-anonymous-mode', (data, callback) => {
     console.error('🔴 [DEBUG] activate-anonymous-mode 이벤트 수신됨!');
     console.error('📋 받은 데이터:', JSON.stringify(data));
     console.error('🔗 소켓 ID:', socket.id);
@@ -291,6 +291,7 @@ io.on('connection', (socket) => {
     if (!rooms[roomId]) {
       console.error(`[익명 모드 활성화] 방을 찾을 수 없습니다: ${roomId}`);
       console.error(`[디버그] 현재 rooms 키:`, Object.keys(rooms));
+      if (callback) callback('Room not found');
       return;
     }
 
@@ -298,6 +299,7 @@ io.on('connection', (socket) => {
     // 현재 사용자가 강의자인지 확인
     if (rooms[roomId].instructorId !== socket.id) {
       console.warn(`[익명 모드 활성화] 강의자만 활성화 가능: ${socket.id}`);
+      if (callback) callback('Only instructor can activate anonymous mode');
       return;
     }
 
@@ -327,6 +329,11 @@ io.on('connection', (socket) => {
     });
     
     console.log(`[익명 모드] 모든 클라이언트에 전송됨`);
+    
+    // ✅ 클라이언트에 콜백 응답 전송
+    if (callback) {
+      callback(null);
+    }
   });
 
   // WebRTC SDP 제안 처리
