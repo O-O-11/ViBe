@@ -388,6 +388,7 @@ function initializeSocket() {
         
         // 모든 참여자를 다시 그리기
         users.forEach(user => {
+            // 1️⃣ 좌측 참여자 목록 업데이트
             let participantEl = document.getElementById(`participant-${user.id}`);
             
             if (participantEl) {
@@ -412,6 +413,22 @@ function initializeSocket() {
                     }
                     
                     console.log(`[익명화 완료] ${user.name} (강의자: ${user.isInstructor})`);
+                }
+            }
+            
+            // 2️⃣ state.remoteUsers에서 이름 업데이트
+            if (state.remoteUsers[user.id]) {
+                state.remoteUsers[user.id].name = user.name;
+                console.log(`[익명화] state.remoteUsers 업데이트: ${user.id} → ${user.name}`);
+            }
+            
+            // 3️⃣ 화면의 비디오 위 이름 표시 업데이트
+            const videoElement = document.getElementById(`remote-video-${user.id}`);
+            if (videoElement) {
+                const usernameEl = videoElement.nextElementSibling; // 비디오 아래 username 요소
+                if (usernameEl && usernameEl.classList.contains('remote-username')) {
+                    usernameEl.textContent = user.name;
+                    console.log(`[익명화] 비디오 username 업데이트: ${user.id} → ${user.name}`);
                 }
             }
         });
