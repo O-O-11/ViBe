@@ -191,6 +191,11 @@ function setupSocketEvents() {
         // 강의자 배지 표시
         if (state.isInstructor) {
             document.getElementById('instructor-badge-container').style.display = 'flex';
+            // ✅ 추가: 강의자인 경우 익명화 버튼도 표시
+            const anonymizeBtn = document.getElementById('anonymize-btn');
+            if (anonymizeBtn) {
+                anonymizeBtn.style.display = 'block';
+            }
         }
         
         // ✅ 수정: Backend에서 보낸 totalUsers 직접 사용 (또는 계산)
@@ -428,6 +433,13 @@ function initializeConferenceScreen() {
 
     // 회의 종료
     document.getElementById('leave-btn').addEventListener('click', leaveConference);
+
+    // ✅ 익명화 버튼 (강의자만 활성화)
+    const anonymizeBtn = document.getElementById('anonymize-btn');
+    if (anonymizeBtn) {
+        // 나중에 joinRoom 후 state.isInstructor 값을 받으면 보이게 함
+        anonymizeBtn.addEventListener('click', activateAnonymousMode);
+    }
 
     // 채팅 전송
     document.getElementById('send-message-btn').addEventListener('click', sendChatMessage);
@@ -1168,6 +1180,22 @@ function switchTab(e) {
 
     e.target.classList.add('active');
     tabElement.classList.add('active');
+}
+
+// ✅ 익명화 버튼 클릭시
+function activateAnonymousMode() {
+    if (!state.isInstructor) {
+        showNotification('강의자만 익명화를 활성화할 수 있습니다', 'error');
+        return;
+    }
+
+    // Backend에 익명 모드 활성화 요청
+    state.socket.emit('activate-anonymous-mode', {
+        roomId: state.roomId
+    });
+
+    console.log('🎭 익명 모드 활성화 요청: ' + state.roomId);
+    showNotification('🎭 익명 모드를 활성화했습니다', 'success');
 }
 
 // ========== 회의 종료 ==========

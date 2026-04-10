@@ -273,6 +273,45 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ✅ 익명 모드 활성화 이벤트 (버튼 클릭 시)
+  socket.on('activate-anonymous-mode', (data) => {
+    const { roomId } = data;
+
+    if (!rooms[roomId]) {
+      console.error(`[익명 모드 활성화] 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+
+    // 현재 사용자가 강의자인지 확인
+    if (rooms[roomId].instructorId !== socket.id) {
+      console.warn(`[익명 모드 활성화] 강의자만 활성화 가능: ${socket.id}`);
+      return;
+    }
+
+    console.log(`🎭 익명 모드 활성화 (버튼): ${roomId}`);
+    rooms[roomId].attendanceChecked = true;
+
+    // 각 학생(강의자 제외)에게 익명 이름 할당
+    rooms[roomId].users.forEach(u => {
+      if (u.id !== rooms[roomId].instructorId) {
+        u.anonymousName = generateAnonymousName();
+        console.log(`[익명명 생성] ${u.name} → ${u.anonymousName}`);
+      }
+    });
+
+    // 모든 클라이언트에게 익명 모드 활성화 알림
+    io.to(roomId).emit('anonymous-mode-activated', {
+      roomId: roomId,
+      users: rooms[roomId].users.map(u => ({
+        id: u.id,
+        name: u.isInstructor ? u.name : u.anonymousName,
+        isInstructor: u.isInstructor
+      }))
+    });
+    
+    console.log(`[익명 모드] 모든 클라이언트에 전송됨`);
+  });
+
   // WebRTC SDP 제안 처리
   socket.on('offer', (data) => {
     const { to, offer, from, fromName, fromIsInstructor } = data;
