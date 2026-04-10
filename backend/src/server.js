@@ -474,7 +474,10 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 ViBe 비디오 회의 서버 시작: http://0.0.0.0:${PORT}\n`);
+  const now = new Date().toISOString();
+  console.log(`\n🚀 ViBe 비디오 회의 서버 시작: http://0.0.0.0:${PORT}`);
+  console.log(`⏰ 시작 시각: ${now}\n`);
   console.log(`📍 API Health Check: http://0.0.0.0:${PORT}/api/health`);
   console.log(`📍 Question Refinement API: POST http://0.0.0.0:${PORT}/api/refine-question\n`);
+  console.log(`🔍 연결된 Socket.IO 핸들러: activate-anonymous-mode, check-attendance 등\n`);
 });
