@@ -1585,12 +1585,14 @@ function createQuiz() {
         return;
     }
 
+    // ✅ 각 퀴즈에 고유 ID 생성
+    const quizId = `quiz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const quizData = {
         question: question,
         correctAnswer: correctAnswer,
         roomId: state.roomId,
-        instructorId: state.socket.id,
-        instructorName: state.userName
+        quizId: quizId  // ✅ 백엔드로 quizId 전송
     };
 
     // 백엔드로 퀴즈 전송
@@ -1602,22 +1604,28 @@ function createQuiz() {
         question: question,
         correctAnswer: correctAnswer,
         timestamp: Date.now(),
+        quizId: quizId,
         instructorId: state.socket.id
     };
     state.correctAnswer = correctAnswer;
     state.quizAnswers = {};
     state.hasAnsweredQuiz = false;
 
-    // ✅ 출제 기록에 추가
-    state.quizHistory.push({
+    // ✅ 출제 기록에 추가 (응답 결과 초기화)
+    const quizHistoryEntry = {
+        quizId: quizId,
         question: question,
         correctAnswer: correctAnswer,
         timestamp: Date.now(),
-        instructorName: state.userName
-    });
+        instructorName: state.userName,
+        oCount: 0,
+        xCount: 0
+    };
+    
+    state.quizHistory.push(quizHistoryEntry);
 
     // ✅ 출제 기록 화면에 표시
-    addQuizToHistory(question, correctAnswer);
+    addQuizToHistory(quizHistoryEntry);
 
     // UI 업데이트: 입력폼만 초기화 (displayQuiz는 socket-quiz-created 이벤트에서 호출됨)
     questionInput.value = '';
@@ -1689,16 +1697,36 @@ function submitAnswerFromChat(answer) {
         roomId: state.roomId,
         userId: state.socket.id,
         userName: state.userName,
-        answer: answer
+        answer: answer,
+        quizId: state.currentQuiz.quizId  // ✅ quizId 포함
     };
 
     // 백엔드로 응답 전송
-    state.socket.emit('submit-answer', answerData);
+    state.socket.emit('quiz-answer', answerData);
     console.log('📤 퀴즈 응답 제출 (채팅):', answerData);
 
     // 로컬 상태 업데이트
     state.hasAnsweredQuiz = true;
     state.quizAnswers[state.socket.id] = answer;
+
+    // ✅ 출제 기록의 응답 카운트 증가
+    const quizEntry = state.quizHistory.find(q => q.quizId === state.currentQuiz.quizId);
+    if (quizEntry) {
+        if (answer === 'O') {
+            quizEntry.oCount += 1;
+        } else {
+            quizEntry.xCount += 1;
+        }
+        // UI 업데이트: 결과 배지 업데이트
+        const quizItem = document.querySelector(`[data-quiz-id="${state.currentQuiz.quizId}"]`);
+        if (quizItem) {
+            const badge = quizItem.querySelector('.result-badge');
+            if (badge) {
+                badge.textContent = quizEntry.oCount + quizEntry.xCount;
+            }
+        }
+        console.log(`✅ 퀴즈 응답 카운트 업데이트: O=${quizEntry.oCount}, X=${quizEntry.xCount}`);
+    }
 
     // UI: 버튼 비활성화 및 선택된 버튼 강조 표시
     const chatQuizBtns = document.querySelectorAll('.chat-quiz-btn');
@@ -1750,27 +1778,59 @@ function displayQuizResults(results) {
 }
 
 // ✅ 출제 기록에 퀴즈 추가
-function addQuizToHistory(question, correctAnswer) {
+function addQuizToHistory(quizEntry) {
     const quizHistoryList = document.getElementById('quiz-history-list');
     if (!quizHistoryList) {
         console.warn('quiz-history-list 요소를 찾을 수 없습니다');
         return;
     }
 
-    const timestamp = new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    const { quizId, question, correctAnswer, timestamp, oCount = 0, xCount = 0 } = quizEntry;
+    const timeString = new Date(timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
     
     const quizItem = document.createElement('div');
     quizItem.className = 'quiz-history-item';
+    quizItem.setAttribute('data-quiz-id', quizId);
     quizItem.innerHTML = `
         <div class="quiz-history-content">
             <div class="quiz-history-question">❓ ${escapeHtml(question)}</div>
             <div class="quiz-history-answer">정답: ${correctAnswer === 'O' ? '⭕ O' : '❌ X'}</div>
-            <div class="quiz-history-time">${timestamp}</div>
+            <div class="quiz-history-time">${timeString}</div>
         </div>
+        <button class="quiz-result-btn" onclick="showQuizResult('${quizId}')">
+            📊 결과<span class="result-badge">${oCount + xCount}</span>
+        </button>
     `;
     
     quizHistoryList.insertBefore(quizItem, quizHistoryList.firstChild);
     console.log('✅ 퀴즈 기록 추가됨:', question);
+}
+
+// ✅ 퀴즈 결과 표시
+function showQuizResult(quizId) {
+    const quizEntry = state.quizHistory.find(q => q.quizId === quizId);
+    
+    if (!quizEntry) {
+        showNotification('퀴즈를 찾을 수 없습니다', 'error');
+        return;
+    }
+
+    const { question, correctAnswer, oCount, xCount } = quizEntry;
+    const total = oCount + xCount;
+    const oPercentage = total > 0 ? ((oCount / total) * 100).toFixed(1) : 0;
+    const xPercentage = total > 0 ? ((xCount / total) * 100).toFixed(1) : 0;
+
+    const resultMessage = `
+❓ 문제: ${question}
+정답: ${correctAnswer === 'O' ? '⭕ O' : '❌ X'}
+
+📊 응답 결과:
+⭕ O: ${oCount}명 (${oPercentage}%)
+❌ X: ${xCount}명 (${xPercentage}%)
+총 응답자: ${total}명
+    `.trim();
+
+    alert(resultMessage);
 }
 
 function closeQuiz() {
