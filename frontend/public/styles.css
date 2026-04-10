@@ -174,21 +174,11 @@ body {
 .video-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: 3fr 1fr;
-    grid-auto-rows: min-content;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 10px;
     padding: 10px;
     overflow-y: auto;
     background: #1a1a1a;
-}
-
-/* ✅ 강의자 비디오 - 왼쪽 전체를 차지 */
-.video-grid .instructor-video {
-    grid-column: 1;
-    grid-row: 1 / -1;
-    width: 100%;
-    height: auto;
-    min-height: 100%;
 }
 
 .video-tile {
@@ -200,11 +190,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-/* ✅ 학생 비디오들 - 오른쪽 열에 위에서부터 배치 */
-.video-grid .video-tile.remote:not(.instructor-video) {
-    grid-column: 2;
 }
 
 .video-tile video {

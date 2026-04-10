@@ -29,7 +29,6 @@ const state = {
     isSidebarVisible: true,
     isInstructor: false,
     suggestedQuestion: null,
-    instructorId: null,
     userColors: {}, // ✅ 사용자별 색깔 저장
     userNames: {}   // ✅ 사용자 ID → 사용자명 매핑 (이름 변경 추적용)
 };
@@ -219,12 +218,6 @@ function setupSocketEvents() {
     document.addEventListener('socket-offer', (e) => {
         const { from, fromName, fromIsInstructor, offer } = e.detail;
         console.log(`📤 Offer 받음: ${fromName}으로부터`);
-        
-        // ✅ 강의자 정보 저장 (시각화 용)
-        if (fromIsInstructor) {
-            state.instructorId = from;
-        }
-        
         handleOffer(from, fromName, fromIsInstructor || false, offer);
     });
 
@@ -628,14 +621,10 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
     
     // 이미 존재하는 경우 videoElement 리셋 방지
     if (!state.remoteUsers[remoteUserId]) {
-        // ✅ 강의자 여부 확인 (instructorId와 비교)
-        const isInstructor = state.instructorId === remoteUserId;
-        
         state.remoteUsers[remoteUserId] = {
             stream: stream,
             name: remoteUserName,
-            videoElement: null,
-            isInstructor: isInstructor
+            videoElement: null
         };
 
         // 원격 비디오 요소 생성
@@ -652,13 +641,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         if (!videoContainer) {
             videoContainer = document.createElement('div');
             videoContainer.id = `remote-video-${remoteUserId}`;
-            
-            // ✅ 강의자인 경우 instructor 클래스 추가
-            if (isInstructor) {
-                videoContainer.className = 'video-tile remote instructor-video';
-            } else {
-                videoContainer.className = 'video-tile remote';
-            }
+            videoContainer.className = 'video-tile remote';
 
             const video = document.createElement('video');
             video.id = `remote-video-element-${remoteUserId}`;
@@ -676,7 +659,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
             videoContainer.appendChild(label);
 
             remoteVideosContainer.appendChild(videoContainer);
-            console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}, 강의자: ${isInstructor}`);
+            console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}`);
 
             state.remoteUsers[remoteUserId].videoElement = video;
         }
