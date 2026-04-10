@@ -148,7 +148,7 @@ async function joinRoom(userName, roomId) {
 
         // ✅ 강의실 코드 표시
         document.getElementById('room-info').style.display = 'block';
-        document.getElementById('room-code-display').textContent = roomId;
+        document.getElementById('current-room-id').textContent = roomId;
 
         // 로컬 이름 표시
         document.getElementById('local-username').textContent = userName;
@@ -1296,7 +1296,7 @@ function activateAnonymousMode() {
 
 // ✅ 강의실 코드 복사
 function copyRoomCode() {
-    const roomCode = document.getElementById('room-code-display').textContent;
+    const roomCode = document.getElementById('current-room-id').textContent;
     navigator.clipboard.writeText(roomCode).then(() => {
         showNotification(`"${roomCode}" 복사됨!`, 'success');
     }).catch(() => {

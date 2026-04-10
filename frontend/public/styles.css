@@ -413,6 +413,12 @@ body {
     font-weight: 600;
 }
 
+#current-room-id {
+    color: #667eea;
+    font-weight: 700;
+    font-family: monospace;
+}
+
 .copy-btn {
     background: none;
     border: none;
