@@ -174,19 +174,20 @@ body {
 .video-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto auto auto auto;
     gap: 10px;
     padding: 10px;
     overflow-y: auto;
     background: #1a1a1a;
 }
 
-/* ✅ 강의자 비디오 고정 배치 */
+/* ✅ 강의자 비디오 고정 배치 - 왼쪽에 크게 */
 .video-grid .instructor-video {
     grid-column: 1;
-    grid-row: 1 / span 3;
-    min-height: 400px;
+    grid-row: 1 / span 4;
+    min-height: 600px;
+    aspect-ratio: auto;
 }
 
 .video-tile {
