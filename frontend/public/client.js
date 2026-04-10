@@ -31,9 +31,11 @@ const state = {
     suggestedQuestion: null,
     userColors: {}, // ✅ 사용자별 색깔 저장
     userNames: {},   // ✅ 사용자 ID → 사용자명 매핑 (이름 변경 추적용)
-    quizzes: [],     // ❓ 출제된 퀴즈 목록
-    userQuizAnswers: {}, // ❓ 사용자가 선택한 답변 (quizId -> answer)
-    quizResponses: {} // ❓ 각 퀴즈 응답 모음 (quizId -> {userId: answer})
+    // ✅ 퀴즈 관련 데이터
+    currentQuiz: null,       // {question: string, correctAnswer: 'O' or 'X', timestamp: number}
+    quizAnswers: {},         // {userId: 'O' or 'X'}
+    hasAnsweredQuiz: false,  // 현재 퀴즈에 대한 본인의 응답 여부
+    correctAnswer: null      // 현재 퀴즈의 정답 (강의자가 설정)
 };
 
 // ✅ 사용자별 색깔 생성 함수 (userId 기반)
@@ -63,7 +65,6 @@ function getUserColor(userId) {
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('✅ DOMContentLoaded 이벤트 발생');
     initializeLoginScreen();
     initializeConferenceScreen();
     // ✅ 수정: setupSocketEvents()는 initializeConferenceScreen 안에서만 호출됨 (중복 방지)
@@ -71,33 +72,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ========== 로그인 화면 ==========
 function initializeLoginScreen() {
-    console.log('🔵 initializeLoginScreen 실행 중...');
     const generateRoomBtn = document.getElementById('generate-room-btn');
     const loginForm = document.getElementById('login-form');
     const joinRoomBtn = document.getElementById('join-room-btn');
 
-    if (!generateRoomBtn) {
-        console.error('❌ generate-room-btn을 찾을 수 없습니다!');
-    } else {
-        console.log('✅ generate-room-btn 찾음');
-        generateRoomBtn.addEventListener('click', generateNewRoom);
-    }
+    generateRoomBtn.addEventListener('click', generateNewRoom);
+    loginForm.addEventListener('submit', handleLogin);
+    joinRoomBtn.addEventListener('click', handleJoinExistingRoom);
 
-    if (!loginForm) {
-        console.error('❌ login-form을 찾을 수 없습니다!');
-    } else {
-        console.log('✅ login-form 찾음');
-        loginForm.addEventListener('submit', handleLogin);
-    }
-
-    if (!joinRoomBtn) {
-        console.error('❌ join-room-btn을 찾을 수 없습니다!');
-    } else {
-        console.log('✅ join-room-btn 찾음');
-        joinRoomBtn.addEventListener('click', handleJoinExistingRoom);
-    }
-
-    console.log('📌 generateNewRoom 호출 중...');
     generateNewRoom();
 }
 
@@ -231,8 +213,11 @@ function setupSocketEvents() {
             if (anonymizeBtn) {
                 anonymizeBtn.style.display = 'block';
             }
-            // ❓ 추가: 강의자인 경우 퀴즈 탭 표시
-            enableQuizTab();
+            // ✅ 추가: 강의자인 경우 퀴즈 출제 패널 표시
+            const quizPanel = document.getElementById('instructor-quiz-panel');
+            if (quizPanel) {
+                quizPanel.style.display = 'block';
+            }
         }
         
         // ✅ 수정: Backend에서 보낸 totalUsers 직접 사용 (또는 계산)
@@ -486,34 +471,37 @@ function initializeSocket() {
         showNotification('🎭 익명 모드가 활성화되었습니다');
     });
 
-    // ❓ 퀴즈 포스트 (강의자가 출제한 퀴즈를 학생들이 받음)
-    state.socket.on('quiz-posted', (data) => {
-        const { quiz } = data;
-        console.log(`❓ 퀴즈 수신: ${quiz.question}`);
+    // ========== 퀴즈 이벤트 리스너 ==========
+    // 퀴즈 출제됨
+    state.socket.on('quiz-created', (data) => {
+        const { question, correctAnswer, instructorName, timestamp } = data;
+        console.log(`❓ 퀴즈 출제됨: ${question} (정답: ${correctAnswer})`);
         
-        displayQuizInChat(quiz);
+        state.currentQuiz = {
+            question: question,
+            correctAnswer: correctAnswer,
+            timestamp: timestamp
+        };
+        state.correctAnswer = correctAnswer;
+        state.quizAnswers = {};
+        state.hasAnsweredQuiz = false;
+
+        displayQuiz(question);
     });
 
-    // ❓ 퀴즈 응답 확인
-    state.socket.on('quiz-response-confirmed', (data) => {
-        const { quizId, answer } = data;
-        console.log(`✅ 퀴즈 응답 확인: ${answer}`);
-    });
-
-    // ❓ 퀴즈 응답 업데이트 (강의자가 실시간 응답 수 확인)
-    state.socket.on('quiz-response-update', (data) => {
-        const { quizId, responses } = data;
-        console.log(`📊 퀴즈 응답 업데이트:`, responses);
+    // 퀴즈 결과
+    state.socket.on('quiz-results-data', (data) => {
+        const { question, oCount, xCount, totalAnswers, answers } = data;
+        console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}`);
         
-        // 출제 기록 업데이트 (나중에 구현)
-    });
+        const results = {
+            question: question,
+            oCount: oCount,
+            xCount: xCount,
+            totalAnswers: totalAnswers
+        };
 
-    // ❓ 퀴즈 결과 수신
-    state.socket.on('quiz-results', (data) => {
-        const { quizId, results } = data;
-        console.log(`📊 퀴즈 ${quizId} 최종 결과:`, results);
-        
-        showNotification(`📊 O: ${results.O}명 | X: ${results.X}명`, 'info');
+        displayQuizResults(results);
     });
 }
 
@@ -601,10 +589,29 @@ function initializeConferenceScreen() {
         btn.addEventListener('click', switchTab);
     });
 
-    // ❓ 퀴즈 기능 초기화
-    enableQuizTab();
-    initializeQuizPanel();
-}
+    // ========== 퀴즈 이벤트 리스너 ==========
+    // 강의자의 퀴즈 출제 버튼
+    const createQuizBtn = document.getElementById('create-quiz-btn');
+    if (createQuizBtn) {
+        createQuizBtn.addEventListener('click', createQuiz);
+    }
+
+    // 기존 UI 원소들은 현재 사용되지 않지만 호환성을 위해 유지
+    const quizOBtn = document.getElementById('quiz-o-btn');
+    const quizXBtn = document.getElementById('quiz-x-btn');
+    if (quizOBtn) quizOBtn.addEventListener('click', () => submitAnswer('O'));
+    if (quizXBtn) quizXBtn.addEventListener('click', () => submitAnswer('X'));
+
+    const closeQuizBtn = document.getElementById('close-quiz-btn');
+    if (closeQuizBtn) {
+        closeQuizBtn.addEventListener('click', closeQuiz);
+    }
+
+    // 강의자용 결과보기 버튼
+    const showResultsBtn = document.getElementById('show-quiz-results-btn');
+    if (showResultsBtn) {
+        showResultsBtn.addEventListener('click', showQuizResults);
+    }
 
     // 화면 공유 닫기
     document.getElementById('close-screen-share-btn').addEventListener('click', closeScreenShare);
@@ -1337,220 +1344,6 @@ function activateAnonymousMode() {
     console.log('📤 Backend에 activate-anonymous-mode 전송 중...');
     console.log('📡 roomId:', state.roomId);
     
-    state.socket.emit('activate-anonymous-mode', {
-        roomId: state.roomId,
-        socketId: state.socket.id
-    }, (error) => {
-        if (error) {
-            console.error('❌ 익명 모드 활성화 실패:', error);
-            showNotification('익명 모드 활성화 실패', 'error');
-        } else {
-            console.log('✅ Backend가 activate-anonymous-mode를 수신했습니다!');
-        }
-    });
-    
-    console.log('✅ 익명 모드 활성화 요청 전송 완료: ' + state.roomId);
-    showNotification('🎭 익명 모드를 활성화했습니다', 'success');
-}
-
-// ========== ❓ 퀴즈 관련 함수 ==========
-
-// 강의자 입장 시 퀴즈 탭 표시
-function enableQuizTab() {
-    if (state.isInstructor) {
-        const quizTabBtn = document.getElementById('quiz-tab-btn');
-        if (quizTabBtn) {
-            quizTabBtn.style.display = 'block';
-        }
-    }
-}
-
-// 퀴즈 출제 버튼 클릭
-function initializeQuizPanel() {
-    const submitQuizBtn = document.getElementById('submit-quiz-btn');
-    if (submitQuizBtn) {
-        submitQuizBtn.addEventListener('click', submitQuiz);
-    }
-}
-
-// 퀴즈 문제 출제
-function submitQuiz() {
-    const questionInput = document.getElementById('quiz-question-input');
-    const answerRadios = document.querySelectorAll('input[name="quiz-answer"]:checked');
-    
-    if (!questionInput.value.trim()) {
-        showNotification('문제를 입력해주세요', 'error');
-        return;
-    }
-    
-    if (answerRadios.length === 0) {
-        showNotification('정답을 선택해주세요', 'error');
-        return;
-    }
-    
-    const correctAnswer = answerRadios[0].value;
-    const quizId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-    
-    const quiz = {
-        id: quizId,
-        question: questionInput.value.trim(),
-        correctAnswer: correctAnswer,
-        createdBy: state.socket.id,
-        createdAt: new Date().toISOString(),
-        responses: {}
-    };
-    
-    // 로컬 상태에 저장
-    state.quizzes.push(quiz);
-    state.quizResponses[quizId] = {};
-    
-    // Backend에 전송
-    state.socket.emit('quiz-submitted', {
-        roomId: state.roomId,
-        quiz: quiz
-    });
-    
-    // 퀴즈 출제 기록 업데이트
-    addQuizToHistory(quiz);
-    
-    // 입력 필드 초기화
-    questionInput.value = '';
-    document.querySelectorAll('input[name="quiz-answer"]').forEach(r => r.checked = false);
-    
-    showNotification('✅ 퀴즈를 출제했습니다', 'success');
-}
-
-// 퀴즈 출제 기록에 추가
-function addQuizToHistory(quiz) {
-    const historyList = document.getElementById('quiz-history-list');
-    if (!historyList) return;
-    
-    const historyItem = document.createElement('div');
-    historyItem.className = 'quiz-history-item';
-    historyItem.innerHTML = `
-        <div class="quiz-question-text">${escapeHtml(quiz.question)}</div>
-        <div class="quiz-answer-text">정답: <strong>${quiz.correctAnswer}</strong></div>
-        <div class="quiz-results-container">
-            <button class="quiz-result-btn" onclick="showQuizResults('${quiz.id}')">
-                📊 결과보기
-            </button>
-        </div>
-    `;
-    historyList.insertBefore(historyItem, historyList.firstChild);
-}
-
-// 채팅창에 퀴즈 표시
-function displayQuizInChat(quiz) {
-    const chatMessages = document.getElementById('chat-messages');
-    if (!chatMessages) return;
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'chat-message';
-    messageDiv.innerHTML = `
-        <div style="font-size: 12px; color: #aaa; margin-bottom: 4px;">
-            📋 강의자로부터 퀴즈 | ${new Date().toLocaleTimeString('ko-KR')}
-        </div>
-        <div class="chat-quiz">
-            <div class="chat-quiz-question">${escapeHtml(quiz.question)}</div>
-            <div class="chat-quiz-buttons">
-                <button class="quiz-answer-choice" onclick="respondToQuiz('${quiz.id}', 'O')">O</button>
-                <button class="quiz-answer-choice" onclick="respondToQuiz('${quiz.id}', 'X')">X</button>
-            </div>
-            <div class="quiz-info-text">
-                <span id="quiz-${quiz.id}-status">답변 대기 중...</span>
-            </div>
-        </div>
-    `;
-    
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// 학생이 퀴즈에 응답
-function respondToQuiz(quizId, answer) {
-    if (state.isInstructor) {
-        showNotification('강의자는 응답할 수 없습니다', 'error');
-        return;
-    }
-    
-    // 이미 응답했으면 중복 응답 방지
-    if (state.userQuizAnswers[quizId]) {
-        showNotification('이미 응답했습니다', 'info');
-        return;
-    }
-    
-    // 로컬 상태에 저장
-    state.userQuizAnswers[quizId] = answer;
-    
-    // Backend에 전송
-    state.socket.emit('quiz-response', {
-        roomId: state.roomId,
-        quizId: quizId,
-        answer: answer,
-        userId: state.socket.id,
-        userName: state.userName
-    });
-    
-    // UI 업데이트 - 버튼 비활성화
-    const quizButtons = document.querySelectorAll(`#chat-quiz-${quizId} .quiz-answer-choice`);
-    quizButtons.forEach(btn => {
-        btn.classList.add('submitted');
-        btn.disabled = true;
-        if (btn.textContent === answer) {
-            btn.classList.add('my-answer');
-        }
-    });
-    
-    // 상태 텍스트 업데이트
-    const statusEl = document.getElementById(`quiz-${quizId}-status`);
-    if (statusEl) {
-        statusEl.textContent = `✅ ${answer}로 응답했습니다`;
-    }
-    
-    showNotification(`✅ ${answer}로 응답했습니다`, 'success');
-}
-
-// 퀴즈 결과 보기 (강의자만)
-function showQuizResults(quizId) {
-    if (!state.isInstructor) {
-        showNotification('강의자만 결과를 볼 수 있습니다', 'error');
-        return;
-    }
-    
-    // Backend에 결과 요청
-    state.socket.emit('quiz-results-request', {
-        roomId: state.roomId,
-        quizId: quizId
-    });
-}
-
-// HTML 특수문자 이스케이프 (XSS 방지)
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, m => map[m]);
-}
-        quizId: quizId
-    });
-}
-
-// HTML 특수문자 이스케이프 (XSS 방지)
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, m => map[m]);
-}
-    
     const emitStartTime = Date.now();
     
     state.socket.emit('activate-anonymous-mode', {
@@ -1756,4 +1549,206 @@ function renameUsername() {
         
         showNotification(`이름이 "${trimmedName}"으로 변경되었습니다`);
     }
+}
+
+// ========== 퀴즈 기능 ==========
+function createQuiz() {
+    const questionInput = document.getElementById('quiz-problem-input');
+    const question = questionInput.value.trim();
+    const correctAnswerRadios = document.querySelectorAll('input[name="quiz-answer"]');
+    let correctAnswer = null;
+    
+    for (const radio of correctAnswerRadios) {
+        if (radio.checked) {
+            correctAnswer = radio.value;
+            break;
+        }
+    }
+    
+    if (!question) {
+        showNotification('퀴즈 문제를 입력해주세요', 'error');
+        return;
+    }
+
+    if (!correctAnswer) {
+        showNotification('정답을 선택해주세요', 'error');
+        return;
+    }
+    
+    if (!state.isInstructor) {
+        showNotification('강의자만 퀴즈를 출제할 수 있습니다', 'error');
+        return;
+    }
+
+    const quizData = {
+        question: question,
+        correctAnswer: correctAnswer,
+        roomId: state.roomId,
+        instructorId: state.socket.id,
+        instructorName: state.userName
+    };
+
+    // 백엔드로 퀴즈 전송
+    state.socket.emit('create-quiz', quizData);
+    console.log('📤 퀴즈 출제:', quizData);
+
+    // 로컬 상태 업데이트
+    state.currentQuiz = {
+        question: question,
+        correctAnswer: correctAnswer,
+        timestamp: Date.now(),
+        instructorId: state.socket.id
+    };
+    state.correctAnswer = correctAnswer;
+    state.quizAnswers = {};
+    state.hasAnsweredQuiz = false;
+
+    // UI 업데이트
+    displayQuiz(question);
+    questionInput.value = '';
+    
+    // 라디오 버튼 초기화
+    correctAnswerRadios.forEach(radio => radio.checked = false);
+}
+
+function displayQuiz(question) {
+    // 채팅창에 퀴즈 문제 표시
+    addChatMessage('시스템', '❓ 퀴즈', question, Date.now(), false);
+    
+    // 채팅 메시지 영역에 O/X 버튼 추가
+    const chatMessages = document.getElementById('chat-messages');
+    
+    const quizButtonContainer = document.createElement('div');
+    quizButtonContainer.className = 'chat-quiz-buttons';
+    quizButtonContainer.innerHTML = `
+        <button class="chat-quiz-btn o-btn" onclick="submitAnswerFromChat('O')">⭕ O</button>
+        <button class="chat-quiz-btn x-btn" onclick="submitAnswerFromChat('X')">❌ X</button>
+    `;
+    
+    chatMessages.appendChild(quizButtonContainer);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function submitAnswer(answer) {
+    if (!state.currentQuiz) {
+        showNotification('진행 중인 퀴즈가 없습니다', 'error');
+        return;
+    }
+
+    if (state.hasAnsweredQuiz) {
+        showNotification('이미 응답했습니다', 'info');
+        return;
+    }
+
+    const answerData = {
+        roomId: state.roomId,
+        userId: state.socket.id,
+        userName: state.userName,
+        answer: answer
+    };
+
+    // 백엔드로 응답 전송
+    state.socket.emit('submit-answer', answerData);
+    console.log('📤 퀴즈 응답 제출:', answerData);
+
+    // 로컬 상태 업데이트
+    state.hasAnsweredQuiz = true;
+    state.quizAnswers[state.socket.id] = answer;
+
+    showNotification(`${answer}를 선택했습니다`, 'success');
+}
+
+// 채팅에서의 응답 처리
+function submitAnswerFromChat(answer) {
+    if (!state.currentQuiz) {
+        showNotification('진행 중인 퀴즈가 없습니다', 'error');
+        return;
+    }
+
+    if (state.hasAnsweredQuiz) {
+        showNotification('이미 응답했습니다', 'info');
+        return;
+    }
+
+    const answerData = {
+        roomId: state.roomId,
+        userId: state.socket.id,
+        userName: state.userName,
+        answer: answer
+    };
+
+    // 백엔드로 응답 전송
+    state.socket.emit('submit-answer', answerData);
+    console.log('📤 퀴즈 응답 제출 (채팅):', answerData);
+
+    // 로컬 상태 업데이트
+    state.hasAnsweredQuiz = true;
+    state.quizAnswers[state.socket.id] = answer;
+
+    // UI: 버튼 비활성화
+    const chatQuizBtns = document.querySelectorAll('.chat-quiz-btn');
+    chatQuizBtns.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+    });
+
+    // 응답한 버튼 강조
+    const selectedBtn = answer === 'O' 
+        ? document.querySelector('.chat-quiz-btn.o-btn')
+        : document.querySelector('.chat-quiz-btn.x-btn');
+    
+    if (selectedBtn) {
+        selectedBtn.style.background = answer === 'O' ? '#4ade80' : '#ef4444';
+        selectedBtn.style.color = answer === 'O' ? '#0d0d0d' : '#fff';
+    }
+
+    showNotification(`${answer}를 선택했습니다 ✅`, 'success');
+}
+
+function showQuizResults() {
+    if (!state.isInstructor) {
+        showNotification('강의자만 결과를 볼 수 있습니다', 'error');
+        return;
+    }
+
+    // 백엔드에 결과 조회 요청
+    state.socket.emit('show-quiz-results', {
+        roomId: state.roomId
+    });
+
+    console.log('📤 퀴즈 결과 요청 - 응답 수:', Object.keys(state.quizAnswers).length);
+}
+
+function displayQuizResults(results) {
+    console.log('📊 퀴즈 결과:', results);
+
+    document.getElementById('current-quiz-display').style.display = 'none';
+    document.getElementById('quiz-creator-section').style.display = 'block';
+    document.getElementById('quiz-results-section').style.display = 'block';
+
+    const totalAnswers = results.oCount + results.xCount;
+    const oPercentage = totalAnswers > 0 ? (results.oCount / totalAnswers) * 100 : 0;
+    const xPercentage = totalAnswers > 0 ? (results.xCount / totalAnswers) * 100 : 0;
+
+    // 결과 표시 업데이트
+    document.getElementById('result-o-count').textContent = results.oCount;
+    document.getElementById('result-x-count').textContent = results.xCount;
+    document.getElementById('result-o-bar').style.width = oPercentage + '%';
+    document.getElementById('result-x-bar').style.width = xPercentage + '%';
+
+    // 채팅에 결과 메시지 추가
+    addChatMessage('시스템', '📊 퀴즈 결과', `⭕ O: ${results.oCount}명 | ❌ X: ${results.xCount}명`, Date.now(), false);
+}
+
+function closeQuiz() {
+    state.currentQuiz = null;
+    state.quizAnswers = {};
+    state.hasAnsweredQuiz = false;
+    state.correctAnswer = null;
+
+    // 채팅에서 마지막 퀴즈 버튼 제거
+    const chatQuizBtns = document.querySelectorAll('.chat-quiz-buttons');
+    chatQuizBtns.forEach(btn => btn.remove());
+    
+    document.getElementById('quiz-problem-input').value = '';
 }
