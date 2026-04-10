@@ -954,3 +954,220 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
 }
+
+/* ========== 퀴즈 스타일 ========== */
+.quiz-section {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.quiz-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 12px;
+}
+
+.quiz-input-group {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.quiz-input-group input {
+    flex: 1;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: white;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.quiz-input-group input::placeholder {
+    color: #888;
+}
+
+.quiz-input-group input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.quiz-btn {
+    padding: 10px 20px;
+    background: #667eea;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.quiz-btn:hover {
+    background: #7c8eea;
+    transform: translateY(-2px);
+}
+
+.quiz-btn:active {
+    background: #5a6ed4;
+}
+
+.quiz-display {
+    background: rgba(102, 126, 234, 0.15);
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.quiz-question-area {
+    margin-bottom: 16px;
+}
+
+.quiz-question {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 16px;
+    line-height: 1.6;
+}
+
+.quiz-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.quiz-option-btn {
+    flex: 1;
+    min-width: 120px;
+    max-width: 200px;
+    padding: 12px 24px;
+    font-size: 18px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quiz-option-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.quiz-option-btn:active {
+    transform: scale(0.95);
+}
+
+.quiz-option-btn.selected-o {
+    background: #4ade80;
+    border-color: #22c55e;
+    color: #0d0d0d;
+    font-weight: 700;
+}
+
+.quiz-option-btn.selected-x {
+    background: #ef4444;
+    border-color: #dc2626;
+    color: white;
+    font-weight: 700;
+}
+
+.student-response-status {
+    text-align: center;
+    font-size: 14px;
+    color: #aaa;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.instructor-result-button-area {
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quiz-results {
+    background: rgba(74, 222, 128, 0.1);
+    border: 2px solid #4ade80;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.quiz-results h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4ade80;
+    margin-bottom: 16px;
+}
+
+.quiz-result-item {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.result-label {
+    min-width: 80px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.result-bar {
+    flex: 1;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.result-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+}
+
+.result-count {
+    min-width: 50px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.quiz-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+    font-size: 16px;
+}

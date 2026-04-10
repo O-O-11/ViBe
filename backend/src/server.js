@@ -175,7 +175,9 @@ io.on('connection', (socket) => {
         users: [],
         instructorId: socket.id,
         createdAt: Date.now(),
-        attendanceChecked: false  // ✅ 익명 모드 활성화 여부
+        attendanceChecked: false,  // ✅ 익명 모드 활성화 여부
+        currentQuiz: null,         // ✅ 현재 진행 중인 퀴즈
+        quizAnswers: {}            // ✅ 퀴즈 응답: {userId: 'O' or 'X'}
       };
       console.log(`📍 새 방 생성: ${roomId}, 강의자: ${socket.id}`);
     }
@@ -426,6 +428,101 @@ io.on('connection', (socket) => {
         console.log(`✏️ 사용자 이름 변경: ${oldName} → ${newName}`);
       }
     }
+  });
+
+  // ========== 퀴즈 이벤트 핸들러 ==========
+  // 퀴즈 출제
+  socket.on('create-quiz', (data) => {
+    const { roomId, question, instructorId, instructorName } = data;
+    
+    if (!rooms[roomId]) {
+      console.error(`[퀴즈] 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+
+    // 강의자인지 확인
+    if (rooms[roomId].instructorId !== socket.id) {
+      console.warn(`[퀴즈] 강의자만 퀴즈를 출제할 수 있습니다: ${socket.id}`);
+      return;
+    }
+
+    // 현재 퀴즈 상태 저장
+    rooms[roomId].currentQuiz = {
+      question: question,
+      instructorId: instructorId,
+      instructorName: instructorName,
+      timestamp: Date.now()
+    };
+    rooms[roomId].quizAnswers = {};
+
+    console.log(`📝 [퀴즈 출제] 방: ${roomId}, 강의자: ${instructorName}, 문제: ${question}`);
+
+    // 모든 학생들에게 퀴즈 전송
+    io.to(roomId).emit('quiz-created', {
+      question: question,
+      instructorName: instructorName,
+      timestamp: rooms[roomId].currentQuiz.timestamp
+    });
+  });
+
+  // 퀴즈 답변 제출
+  socket.on('submit-answer', (data) => {
+    const { roomId, userId, userName, answer } = data;
+    
+    if (!rooms[roomId]) {
+      console.error(`[퀴즈 응답] 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+
+    if (!rooms[roomId].currentQuiz) {
+      console.warn(`[퀴즈 응답] 진행 중인 퀴즈가 없습니다: ${roomId}`);
+      return;
+    }
+
+    // 응답 저장
+    rooms[roomId].quizAnswers[userId] = answer;
+    
+    console.log(`📤 [퀴즈 응답] 방: ${roomId}, 사용자: ${userName}(${userId}), 응답: ${answer}`);
+
+    // 강의자에게만 응답 상황 알림 (실시간 업데이트)
+    io.to(roomId).emit('quiz-response-submitted', {
+      userId: userId,
+      userName: userName,
+      answer: answer,
+      totalResponses: Object.keys(rooms[roomId].quizAnswers).length
+    });
+  });
+
+  // 퀴즈 결과 보기
+  socket.on('show-quiz-results', (data) => {
+    const { roomId } = data;
+    
+    if (!rooms[roomId]) {
+      console.error(`[퀴즈 결과] 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+
+    // 강의자인지 확인
+    if (rooms[roomId].instructorId !== socket.id) {
+      console.warn(`[퀴즈 결과] 강의자만 결과를 볼 수 있습니다: ${socket.id}`);
+      return;
+    }
+
+    // 응답 수 계산
+    const answers = rooms[roomId].quizAnswers;
+    const oCount = Object.values(answers).filter(a => a === 'O').length;
+    const xCount = Object.values(answers).filter(a => a === 'X').length;
+
+    console.log(`📊 [퀴즈 결과] 방: ${roomId}, O: ${oCount}명, X: ${xCount}명`);
+
+    // 모든 참여자에게 결과 전송
+    io.to(roomId).emit('quiz-results-data', {
+      question: rooms[roomId].currentQuiz.question,
+      oCount: oCount,
+      xCount: xCount,
+      totalAnswers: Object.keys(answers).length,
+      answers: answers
+    });
   });
 
   // 연결 해제
