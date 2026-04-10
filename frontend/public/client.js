@@ -63,6 +63,7 @@ function getUserColor(userId) {
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ DOMContentLoaded 이벤트 발생');
     initializeLoginScreen();
     initializeConferenceScreen();
     // ✅ 수정: setupSocketEvents()는 initializeConferenceScreen 안에서만 호출됨 (중복 방지)
@@ -70,14 +71,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ========== 로그인 화면 ==========
 function initializeLoginScreen() {
+    console.log('🔵 initializeLoginScreen 실행 중...');
     const generateRoomBtn = document.getElementById('generate-room-btn');
     const loginForm = document.getElementById('login-form');
     const joinRoomBtn = document.getElementById('join-room-btn');
 
-    generateRoomBtn.addEventListener('click', generateNewRoom);
-    loginForm.addEventListener('submit', handleLogin);
-    joinRoomBtn.addEventListener('click', handleJoinExistingRoom);
+    if (!generateRoomBtn) {
+        console.error('❌ generate-room-btn을 찾을 수 없습니다!');
+    } else {
+        console.log('✅ generate-room-btn 찾음');
+        generateRoomBtn.addEventListener('click', generateNewRoom);
+    }
 
+    if (!loginForm) {
+        console.error('❌ login-form을 찾을 수 없습니다!');
+    } else {
+        console.log('✅ login-form 찾음');
+        loginForm.addEventListener('submit', handleLogin);
+    }
+
+    if (!joinRoomBtn) {
+        console.error('❌ join-room-btn을 찾을 수 없습니다!');
+    } else {
+        console.log('✅ join-room-btn 찾음');
+        joinRoomBtn.addEventListener('click', handleJoinExistingRoom);
+    }
+
+    console.log('📌 generateNewRoom 호출 중...');
     generateNewRoom();
 }
 
