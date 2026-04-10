@@ -357,6 +357,19 @@ function initializeSocket() {
         document.dispatchEvent(event);
     });
 
+    // ✅ 강의자가 나갔을 때 - 방 폐쇄
+    state.socket.on('room-closed', (data) => {
+        console.log('🔴 [방 폐쇄] 강의자가 나갔습니다');
+        const { message } = data;
+        
+        showNotification(message || '강의자가 나갔습니다. 방이 폐쇄됩니다.', 'error');
+        
+        // 2초 후 로그인 화면으로 돌아가기
+        setTimeout(() => {
+            leaveConference();
+        }, 2000);
+    });
+
     // 사용자 이름 변경
     state.socket.on('user-renamed', (data) => {
         const { userId, oldName, newName } = data;

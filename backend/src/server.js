@@ -437,16 +437,35 @@ io.on('connection', (socket) => {
       const userIndex = rooms[roomId].users.findIndex(u => u.id === socket.id);
       if (userIndex !== -1) {
         const userName = rooms[roomId].users[userIndex].name;
+        const isInstructor = rooms[roomId].instructorId === socket.id;
+        
         rooms[roomId].users.splice(userIndex, 1);
 
-        io.to(roomId).emit('user-left', {
-          userId: socket.id,
-          userName: userName,
-          totalUsers: rooms[roomId].users.length
-        });
-
-        if (rooms[roomId].users.length === 0) {
+        // ✅ 강의자가 나가면 즉시 방 폐쇄
+        if (isInstructor) {
+          console.log(`🔴 [강의자 퇴장] 방 폐쇄: ${roomId} (강의자: ${userName})`);
+          
+          // 남아있는 학생들에게 방 폐쇄 알림
+          io.to(roomId).emit('room-closed', {
+            reason: '강의자가 나갔습니다',
+            message: `강의자 "${userName}"이 나갔습니다. 방이 폐쇄됩니다.`
+          });
+          
+          // 방 삭제
           delete rooms[roomId];
+        } else {
+          // 강의자가 아닌 경우: 일반 user-left 이벤트 전송
+          io.to(roomId).emit('user-left', {
+            userId: socket.id,
+            userName: userName,
+            totalUsers: rooms[roomId].users.length
+          });
+
+          // 방이 비어있으면 삭제
+          if (rooms[roomId].users.length === 0) {
+            console.log(`🗑️ 방 삭제 (모두 나감): ${roomId}`);
+            delete rooms[roomId];
+          }
         }
       }
     }
