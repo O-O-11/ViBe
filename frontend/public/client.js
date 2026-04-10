@@ -151,7 +151,7 @@ function setupSocketEvents() {
         // ✅ 수정: 내가 Offer 담당자인 경우만 Offer 생성
         // (Socket ID 비교로 한쪽만 Offer 보냄 - 신호 교환 충돌 방지)
         if (shouldInitiateOffer(userId)) {
-            createOffer(userId, userName);
+            createOffer(userId, userName, isInstructor);
         }
     });
 
@@ -191,9 +191,9 @@ function setupSocketEvents() {
 
     // 오퍼 받음
     document.addEventListener('socket-offer', (e) => {
-        const { from, fromName, offer } = e.detail;
+        const { from, fromName, fromIsInstructor, offer } = e.detail;
         console.log(`📤 Offer 받음: ${fromName}으로부터`);
-        handleOffer(from, fromName, offer);
+        handleOffer(from, fromName, fromIsInstructor || false, offer);
     });
 
     // 답변 받음
@@ -409,9 +409,9 @@ function shouldInitiateOffer(remoteUserId) {
     return state.socket.id < remoteUserId;
 }
 
-async function createOffer(remoteUserId, remoteUserName) {
+async function createOffer(remoteUserId, remoteUserName, remoteUserIsInstructor = false) {
     try {
-        const peerConnection = createPeerConnection(remoteUserId, remoteUserName);
+        const peerConnection = createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor);
 
         // 로컬 스트림 추가
         console.log(`[Offer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
@@ -442,12 +442,12 @@ async function createOffer(remoteUserId, remoteUserName) {
     }
 }
 
-async function handleOffer(remoteUserId, remoteUserName, offer) {
+async function handleOffer(remoteUserId, remoteUserName, remoteUserIsInstructor = false, offer) {
     try {
         let peerConnection = state.peerConnections[remoteUserId];
 
         if (!peerConnection) {
-            peerConnection = createPeerConnection(remoteUserId, remoteUserName);
+            peerConnection = createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor);
             // ✅ 수정: 양방향 스트림을 위해 track 추가 필요
             // (Offer 받는 쪽도 자신의 스트림을 전송해야 함)
             console.log(`[handleOffer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
@@ -517,7 +517,7 @@ async function handleIceCandidate(remoteUserId, candidate) {
     }
 }
 
-function createPeerConnection(remoteUserId, remoteUserName) {
+function createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor = false) {
     const peerConnection = new RTCPeerConnection({
         iceServers: RTCConfig.iceServers
     });
@@ -539,7 +539,7 @@ function createPeerConnection(remoteUserId, remoteUserName) {
     peerConnection.ontrack = (event) => {
         console.log(`🎬 원격 스트림 수신: ${remoteUserId}, track kind: ${event.track.kind}, streams: ${event.streams.length}`);
         if (event.streams && event.streams.length > 0) {
-            handleRemoteStream(remoteUserId, event.streams[0], remoteUserName);
+            handleRemoteStream(remoteUserId, event.streams[0], remoteUserName, remoteUserIsInstructor);
         }
     };
 
@@ -556,7 +556,7 @@ function createPeerConnection(remoteUserId, remoteUserName) {
     return peerConnection;
 }
 
-function handleRemoteStream(remoteUserId, stream, remoteUserName) {
+function handleRemoteStream(remoteUserId, stream, remoteUserName, remoteUserIsInstructor = false) {
     console.log(`[handleRemoteStream] 시작, remoteUserId: ${remoteUserId}, 스트림 트랙 수: ${stream.getTracks().length}`);
     
     // 이미 존재하는 경우 videoElement 리셋 방지
@@ -564,6 +564,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         state.remoteUsers[remoteUserId] = {
             stream: stream,
             name: remoteUserName,
+            isInstructor: remoteUserIsInstructor,
             videoElement: null
         };
 
@@ -593,7 +594,18 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
 
             const label = document.createElement('div');
             label.className = 'video-label';
-            label.textContent = remoteUserName;
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = remoteUserName;
+            label.appendChild(nameSpan);
+            
+            // 강의자 배지 추가
+            if (remoteUserIsInstructor) {
+                const badge = document.createElement('span');
+                badge.className = 'instructor-badge';
+                badge.textContent = '강의자';
+                label.appendChild(badge);
+            }
 
             videoContainer.appendChild(video);
             videoContainer.appendChild(label);

@@ -173,9 +173,12 @@ io.on('connection', (socket) => {
   // WebRTC SDP 제안 처리
   socket.on('offer', (data) => {
     const { to, offer, from, fromName } = data;
+    const room = rooms[socket.handshake.query.roomId];
+    const fromIsInstructor = room && room.instructorId === from;
     io.to(to).emit('offer', {
       from: from,
       fromName: fromName,
+      fromIsInstructor: fromIsInstructor,
       offer: offer
     });
     console.log(`📤 Offer 전송: ${from} -> ${to}`);
