@@ -381,23 +381,42 @@ function initializeSocket() {
     state.socket.on('anonymous-mode-activated', (data) => {
         const { users } = data;
         console.log(`🎭 익명 모드 활성화! 참여자 수: ${users.length}`);
+        console.log(`📝 받은 데이터:`, users);
         
-        // 참여자 목록 업데이트 (익명명 적용)
+        // ✅ 수정: 참여자 목록 전체 갱신 (더 견고한 방식)
+        const participantsList = document.getElementById('participants-list');
+        
+        // 모든 참여자를 다시 그리기
         users.forEach(user => {
-            const participantEl = document.getElementById(`participant-${user.id}`);
+            let participantEl = document.getElementById(`participant-${user.id}`);
+            
             if (participantEl) {
+                // 기존 요소 업데이트
                 const nameContainer = participantEl.querySelector('.participant-name-container');
                 if (nameContainer) {
+                    // 강의자 배지 추출
                     const badge = nameContainer.querySelector('.instructor-badge');
+                    
+                    // 텍스트만 변경
+                    nameContainer.innerHTML = '';
                     nameContainer.textContent = user.name;
-                    if (badge) {
-                        nameContainer.appendChild(badge);
+                    
+                    // 배지 재추가
+                    if (badge && !user.isInstructor) {
+                        // 학생인 경우: 배지 추가 안 함 (강의자 제외)
+                        console.log(`[익명화] ${user.name}: 배지 제거됨 (학생)`);
+                    } else if (user.isInstructor && badge) {
+                        // 강의자인 경우: 배지 유지
+                        nameContainer.appendChild(badge.cloneNode(true));
+                        console.log(`[익명화] ${user.name}: 배지 유지됨 (강의자)`);
                     }
+                    
+                    console.log(`[익명화 완료] ${user.name} (강의자: ${user.isInstructor})`);
                 }
             }
         });
 
-        showNotification('🎭 모든 참여자의 출석이 확인되었습니다. 익명 모드가 활성화되었습니다.');
+        showNotification('🎭 익명 모드가 활성화되었습니다');
     });
 }
 

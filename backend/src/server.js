@@ -300,13 +300,17 @@ io.on('connection', (socket) => {
     });
 
     // 모든 클라이언트에게 익명 모드 활성화 알림
+    const usersToSend = rooms[roomId].users.map(u => ({
+      id: u.id,
+      name: u.isInstructor ? u.name : u.anonymousName,
+      isInstructor: u.isInstructor
+    }));
+
+    console.log(`[익명화 전송 데이터]:`, JSON.stringify(usersToSend, null, 2));
+
     io.to(roomId).emit('anonymous-mode-activated', {
       roomId: roomId,
-      users: rooms[roomId].users.map(u => ({
-        id: u.id,
-        name: u.isInstructor ? u.name : u.anonymousName,
-        isInstructor: u.isInstructor
-      }))
+      users: usersToSend
     });
     
     console.log(`[익명 모드] 모든 클라이언트에 전송됨`);
