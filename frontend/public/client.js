@@ -610,8 +610,9 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
     if (video) {
         try {
             video.srcObject = stream;
-            console.log(`[handleRemoteStream] srcObject 설정 완료, play() 호출`);
-            video.play().catch(err => console.error(`[handleRemoteStream] play() 오류:`, err));
+            console.log(`[handleRemoteStream] srcObject 설정 완료, autoplay로 진행`);
+            // autoplay 속성으로 자동 재생되므로 play() 호출 생략
+            // play()를 호출하면 srcObject 변경 시 중단될 수 있음
         } catch (error) {
             console.error(`[handleRemoteStream] srcObject 설정 오류:`, error);
         }
