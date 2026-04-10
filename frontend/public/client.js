@@ -1201,30 +1201,11 @@ function renameUsername() {
         const trimmedName = newName.trim();
         state.userName = trimmedName;
         
-        // UI에 새로운 이름 표시 (강의자 배지는 별도 요소)
+        // UI에 새로운 이름 표시
         document.getElementById('local-username').textContent = trimmedName;
-        
-        // 참여자 목록에서 자신의 이름 업데이트
-        const participantEl = document.getElementById(`participant-${state.socket.id}`);
-        if (participantEl) {
-            if (state.isInstructor) {
-                participantEl.innerHTML = `${trimmedName} <span class="instructor-badge">강의자</span>`;
-            } else {
-                participantEl.textContent = trimmedName;
-            }
-        }
         
         // 메뉴 닫기
         document.getElementById('username-menu').style.display = 'none';
-        
-        // 원격 사용자들에게 새로운 이름 알림
-        if (state.socket) {
-            state.socket.emit('username-changed', {
-                roomId: state.roomId,
-                userId: state.socket.id,
-                newName: trimmedName
-            });
-        }
         
         showNotification(`이름이 "${trimmedName}"으로 변경되었습니다`);
     }
