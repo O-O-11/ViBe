@@ -594,23 +594,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
 
             const label = document.createElement('div');
             label.className = 'video-label';
-            
-            // 이름 표시
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = remoteUserName;
-            label.appendChild(nameSpan);
-            
-            // 강의자 배지 확인 및 추가
-            const participantItem = document.getElementById(`participant-${remoteUserId}`);
-            if (participantItem) {
-                const badge = participantItem.querySelector('.instructor-badge');
-                if (badge) {
-                    const videoBadge = document.createElement('span');
-                    videoBadge.className = 'instructor-badge';
-                    videoBadge.textContent = '강의자';
-                    label.appendChild(videoBadge);
-                }
-            }
+            label.textContent = remoteUserName;
 
             videoContainer.appendChild(video);
             videoContainer.appendChild(label);
