@@ -265,6 +265,28 @@ io.on('connection', (socket) => {
     console.log(`👋 사용자 퇴장: ${userName}`);
   });
 
+  // 사용자 이름 변경
+  socket.on('username-changed', (data) => {
+    const { roomId, userId, newName } = data;
+    
+    if (rooms[roomId]) {
+      const user = rooms[roomId].users.find(u => u.id === userId);
+      if (user) {
+        const oldName = user.name;
+        user.name = newName;
+        
+        // 같은 방의 다른 사용자들에게 이름 변경 알림
+        io.to(roomId).emit('user-renamed', {
+          userId: userId,
+          oldName: oldName,
+          newName: newName
+        });
+        
+        console.log(`✏️ 사용자 이름 변경: ${oldName} → ${newName}`);
+      }
+    }
+  });
+
   // 연결 해제
   socket.on('disconnect', () => {
     console.log(`❌ 사용자 연결 해제: ${socket.id}`);

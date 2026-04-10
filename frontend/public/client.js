@@ -223,6 +223,32 @@ function setupSocketEvents() {
             updateParticipantCount();
         }
         
+        // 참여자 목록에서 사용자 제거
+        const participantEl = document.getElementById(`participant-${userId}`);
+        if (participantEl) {
+            participantEl.remove();
+        }
+    });
+
+    // 사용자 이름 변경 이벤트
+    state.socket.on('user-renamed', (data) => {
+        const { userId, oldName, newName } = data;
+        console.log(`✏️ ${oldName}이 ${newName}으로 이름 변경`);
+        
+        // 참여자 목록에서 해당 사용자의 이름 업데이트
+        const participantEl = document.getElementById(`participant-${userId}`);
+        if (participantEl) {
+            const nameContainer = participantEl.querySelector('.participant-name-container');
+            if (nameContainer) {
+                // 기존 배지 보존
+                const badge = nameContainer.querySelector('.instructor-badge');
+                nameContainer.textContent = newName;
+                if (badge) {
+                    nameContainer.appendChild(badge.cloneNode(true));
+                }
+            }
+        }
+        
         removeParticipantFromList(userId);
     });
 
@@ -1201,11 +1227,37 @@ function renameUsername() {
         const trimmedName = newName.trim();
         state.userName = trimmedName;
         
-        // UI에 새로운 이름 표시
+        // 1. 로컬 UI에 새로운 이름 표시
         document.getElementById('local-username').textContent = trimmedName;
         
-        // 메뉴 닫기
+        // 2. 참여자 목록에서 자신의 이름 업데이트
+        const participantEl = document.getElementById(`participant-${state.socket.id}`);
+        if (participantEl) {
+            const nameContainer = participantEl.querySelector('.participant-name-container');
+            if (nameContainer) {
+                // 기존 배지나 다른 자식 요소 보존
+                const children = Array.from(nameContainer.childNodes);
+                nameContainer.textContent = trimmedName;
+                // 배지가 있었다면 다시 추가
+                children.forEach(child => {
+                    if (child.nodeType === Node.ELEMENT_NODE && child.classList.contains('instructor-badge')) {
+                        nameContainer.appendChild(child.cloneNode(true));
+                    }
+                });
+            }
+        }
+        
+        // 3. 메뉴 닫기
         document.getElementById('username-menu').style.display = 'none';
+        
+        // 4. 다른 사용자들에게 이름 변경 알림
+        if (state.socket) {
+            state.socket.emit('username-changed', {
+                roomId: state.roomId,
+                userId: state.socket.id,
+                newName: trimmedName
+            });
+        }
         
         showNotification(`이름이 "${trimmedName}"으로 변경되었습니다`);
     }
