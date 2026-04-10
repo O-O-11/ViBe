@@ -146,6 +146,10 @@ async function joinRoom(userName, roomId) {
         document.getElementById('login-container').classList.remove('active');
         document.getElementById('conference-container').classList.add('active');
 
+        // ✅ 강의실 코드 표시
+        document.getElementById('room-info').style.display = 'block';
+        document.getElementById('room-code-display').textContent = roomId;
+
         // 로컬 이름 표시
         document.getElementById('local-username').textContent = userName;
 
@@ -473,6 +477,9 @@ function initializeConferenceScreen() {
 
     // 사이드바 토글
     document.getElementById('toggle-sidebar-btn').addEventListener('click', toggleSidebar);
+
+    // ✅ 강의실 코드 복사
+    document.getElementById('copy-room-code-btn').addEventListener('click', copyRoomCode);
 
     // 이름 변경 메뉴
     document.getElementById('username-menu-btn').addEventListener('click', toggleUsernameMenu);
@@ -1287,6 +1294,16 @@ function activateAnonymousMode() {
     showNotification('🎭 익명 모드를 활성화했습니다', 'success');
 }
 
+// ✅ 강의실 코드 복사
+function copyRoomCode() {
+    const roomCode = document.getElementById('room-code-display').textContent;
+    navigator.clipboard.writeText(roomCode).then(() => {
+        showNotification(`"${roomCode}" 복사됨!`, 'success');
+    }).catch(() => {
+        showNotification('복사 실패', 'error');
+    });
+}
+
 // ========== 회의 종료 ==========
 function leaveConference() {
     if (!confirm('회의를 종료하시겠습니까?')) return;
@@ -1324,6 +1341,7 @@ function leaveConference() {
     document.getElementById('chat-messages').innerHTML = '';
     document.getElementById('participants-list').innerHTML = '';
     document.getElementById('remote-videos-container').innerHTML = '';
+    document.getElementById('room-info').style.display = 'none';
 
     showNotification('회의가 종료되었습니다');
 }

@@ -94,6 +94,15 @@
 
             <!-- 사이드바 (채팅 & 참여자) -->
             <div class="sidebar">
+                <!-- ✅ 강의실 코드 표시 -->
+                <div id="room-info" class="room-info" style="display: none;">
+                    <div class="room-code-label">방 ID</div>
+                    <div class="room-code-container">
+                        <span id="room-code-display" class="room-code"></span>
+                        <button id="copy-room-code-btn" class="copy-btn" title="코드 복사">📋</button>
+                    </div>
+                </div>
+
                 <div class="sidebar-tabs">
                     <button class="tab-btn active" data-tab="participants">
                         👥 참여자 (<span id="participant-count">1</span>)

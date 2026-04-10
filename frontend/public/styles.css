@@ -394,6 +394,52 @@ body {
     width: 0;
 }
 
+/* ✅ 강의실 코드 */
+.room-info {
+    padding: 12px 16px;
+    background: #222;
+    border-bottom: 1px solid #444;
+}
+
+.room-code-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+}
+
+.room-code-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.room-code {
+    font-size: 14px;
+    font-weight: bold;
+    color: #667eea;
+    font-family: 'Monaco', 'Courier New', monospace;
+    flex: 1;
+}
+
+.copy-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    transition: color 0.2s;
+}
+
+.copy-btn:hover {
+    color: #667eea;
+}
+
 .sidebar-tabs {
     display: flex;
     border-bottom: 1px solid #444;
