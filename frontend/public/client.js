@@ -1596,7 +1596,7 @@ function createQuiz() {
     state.socket.emit('quiz-created', quizData);
     console.log('📤 퀴즈 출제:', quizData);
 
-    // 로컬 상태 업데이트
+    // 로컬 상태 업데이트 (socket 이벤트에서 displayQuiz가 호출되므로 여기서는 상태만 업데이트)
     state.currentQuiz = {
         question: question,
         correctAnswer: correctAnswer,
@@ -1607,8 +1607,7 @@ function createQuiz() {
     state.quizAnswers = {};
     state.hasAnsweredQuiz = false;
 
-    // UI 업데이트
-    displayQuiz(question);
+    // UI 업데이트: 입력폼만 초기화 (displayQuiz는 socket-quiz-created 이벤트에서 호출됨)
     questionInput.value = '';
     
     // 라디오 버튼 초기화
