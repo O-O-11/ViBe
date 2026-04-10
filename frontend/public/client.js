@@ -1535,6 +1535,21 @@ function escapeHtml(text) {
     };
     return text.replace(/[&<>"']/g, m => map[m]);
 }
+        quizId: quizId
+    });
+}
+
+// HTML 특수문자 이스케이프 (XSS 방지)
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
     
     const emitStartTime = Date.now();
     
