@@ -273,8 +273,8 @@ body {
 .instructor-badge {
     background: #e74c3c;
     color: white;
-    font-size: 19px;
-    padding: 4px 10px;
+    font-size: 14px;
+    padding: 6px 12px;
     border-radius: 4px;
     font-weight: 700;
     white-space: nowrap;
@@ -282,6 +282,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 32px;
 }
 
 .video-controls {
