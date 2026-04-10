@@ -1203,17 +1203,30 @@ function switchTab(e) {
 
 // ✅ 익명화 버튼 클릭시
 function activateAnonymousMode() {
+    console.log('🔵 activateAnonymousMode 함수 호출됨');
+    console.log('📊 state.isInstructor:', state.isInstructor);
+    console.log('📊 state.socket:', state.socket ? 'Connected' : 'Not connected');
+    console.log('📊 state.roomId:', state.roomId);
+    
     if (!state.isInstructor) {
+        console.log('❌ 강의자가 아님!');
         showNotification('강의자만 익명화를 활성화할 수 있습니다', 'error');
         return;
     }
 
+    if (!state.socket) {
+        console.error('❌ Socket이 연결되지 않았습니다!');
+        showNotification('Socket 연결 오류', 'error');
+        return;
+    }
+
     // Backend에 익명 모드 활성화 요청
+    console.log('📤 Backend에 activate-anonymous-mode 전송 중...');
     state.socket.emit('activate-anonymous-mode', {
         roomId: state.roomId
     });
 
-    console.log('🎭 익명 모드 활성화 요청: ' + state.roomId);
+    console.log('✅ 익명 모드 활성화 요청 전송 완료: ' + state.roomId);
     showNotification('🎭 익명 모드를 활성화했습니다', 'success');
 }
 

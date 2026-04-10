@@ -275,13 +275,20 @@ io.on('connection', (socket) => {
 
   // ✅ 익명 모드 활성화 이벤트 (버튼 클릭 시)
   socket.on('activate-anonymous-mode', (data) => {
+    console.error('🔴 [DEBUG] activate-anonymous-mode 이벤트 수신됨!');
+    console.error('📋 받은 데이터:', JSON.stringify(data));
+    console.error('🔗 소켓 ID:', socket.id);
+    
     const { roomId } = data;
 
+    console.error(`[익명 모드] 방 검색: ${roomId}`);
     if (!rooms[roomId]) {
       console.error(`[익명 모드 활성화] 방을 찾을 수 없습니다: ${roomId}`);
+      console.error(`[디버그] 현재 rooms 키:`, Object.keys(rooms));
       return;
     }
 
+    console.error(`[익명 모드] 강의자 확인: ${rooms[roomId].instructorId} vs ${socket.id}`);
     // 현재 사용자가 강의자인지 확인
     if (rooms[roomId].instructorId !== socket.id) {
       console.warn(`[익명 모드 활성화] 강의자만 활성화 가능: ${socket.id}`);
