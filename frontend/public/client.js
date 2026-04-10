@@ -35,7 +35,7 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
     initializeLoginScreen();
     initializeConferenceScreen();
-    setupSocketEvents();
+    // ✅ 수정: setupSocketEvents()는 initializeConferenceScreen 안에서만 호출됨 (중복 방지)
 });
 
 // ========== 로그인 화면 ==========
