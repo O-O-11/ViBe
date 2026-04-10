@@ -9,7 +9,7 @@ html {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe Color Emoji', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: #1a1a1a;
     color: #fff;
     overflow: hidden;
