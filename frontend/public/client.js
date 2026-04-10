@@ -148,11 +148,9 @@ function setupSocketEvents() {
         
         addParticipantToList(userId, userName, isInstructor);
 
-        // ✅ 수정: 내가 Offer 담당자인 경우만 Offer 생성
-        // (Socket ID 비교로 한쪽만 Offer 보냄 - 신호 교환 충돌 방지)
-        if (shouldInitiateOffer(userId)) {
-            createOffer(userId, userName, isInstructor);
-        }
+        // ✅ 수정: 여기서는 offer를 보내지 않음
+        // 새로 들어온 사람(userId)이 기존 사용자들(우리)에게 offer를 보낼 것을 기다림
+        // 기존 사용자가 새로 들어온 사람에게 offer를 보내면 안 됨 (시그널 충돌 방지)
     });
 
     // 기존 사용자 목록 받음
@@ -179,13 +177,13 @@ function setupSocketEvents() {
         // 자신을 참여자 목록에 먼저 추가
         addParticipantToList(state.socket.id, state.userName, state.isInstructor);
         
-        // 기존 사용자 추가
+        // 기존 사용자 추가 및 Offer 생성
         users.forEach(user => {
             addParticipantToList(user.id, user.name, user.isInstructor);
             
-            // ✅ 수정: 기존 사용자들은 나에게 Offer를 보낼 것이므로
-            // 나는 Answer만 기대함 (Offer는 보내지 않음)
-            // 이미 방에 있던 사용자들이 Offer 담당자임
+            // ✅ 수정: 새로 들어온 내가 기존 사용자들(user)에게 offer를 보냄
+            // 이렇게 해야 시그널 충돌이 없음
+            createOffer(user.id, user.name, user.isInstructor);
         });
     });
 
