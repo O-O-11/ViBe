@@ -54,6 +54,33 @@ app.use(express.json());
 const users = {};
 const rooms = {};
 
+// ✅ 익명 이름 생성 함수
+function generateAnonymousName() {
+  const verbs = [
+    '뛰어다니는', '날아다니는', '헤엄치는', '기어가는', '뛰는', '춤추는', 
+    '노래하는', '울음을 내는', '웃는', '조용한', '재빠른', '느린',
+    '으르렁거리는', '친절한', '장난치는', '새침한', '신나하는'
+  ];
+  
+  const animals = [
+    '호랑이', '사자', '곰', '토끼', '여우', '원숭이', '수달', '참새', 
+    '독수리', '펭귄', '고양이', '개', '돼지', '소', '말', '양', '닭',
+    '오리', '거북이', '뱀', '악어', '사슴', '기린', '얼룩말'
+  ];
+  
+  const verb = verbs[Math.floor(Math.random() * verbs.length)];
+  const animal = animals[Math.floor(Math.random() * animals.length)];
+  
+  return `${verb} ${animal}`;
+}
+
+// ✅ 모든 참여자 출석 체크 완료 여부
+function areAllAttendanceChecked(room) {
+  // 강의자 제외한 모든 참여자가 출석 상태를 가져야 함
+  const nonInstructorUsers = room.users.filter(u => u.id !== room.instructorId);
+  return nonInstructorUsers.length > 0 && nonInstructorUsers.every(u => u.attendance !== null);
+}
+
 // ========== API Routes ==========
 // Question Refinement API Endpoint
 app.post('/api/refine-question', async (req, res) => {
@@ -142,7 +169,8 @@ io.on('connection', (socket) => {
         id: roomId,
         users: [],
         instructorId: socket.id,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        attendanceChecked: false  // ✅ 익명 모드 활성화 여부
       };
       console.log(`📍 새 방 생성: ${roomId}, 강의자: ${socket.id}`);
     }
@@ -150,7 +178,8 @@ io.on('connection', (socket) => {
     rooms[roomId].users.push({
       id: socket.id,
       name: userName,
-      isInstructor: rooms[roomId].instructorId === socket.id
+      isInstructor: rooms[roomId].instructorId === socket.id,
+      attendance: null  // ✅ 출석 상태: null (미체크), 'present' (출석), 'late' (지각), 'absent' (결석)
     });
 
     console.log(`🚪 사용자 합류: ${userName}(${socket.id})이 방 ${roomId}에 입장, 강의자: ${rooms[roomId].instructorId === socket.id}`);
@@ -168,6 +197,63 @@ io.on('connection', (socket) => {
       users: rooms[roomId].users.filter(u => u.id !== socket.id),
       isUserInstructor: rooms[roomId].instructorId === socket.id
     });
+  });
+
+  // ✅ 출석 체크 이벤트
+  socket.on('check-attendance', (data) => {
+    const { roomId, userId, status } = data; // status: 'present', 'late', 'absent'
+    
+    if (!rooms[roomId]) {
+      console.error(`[출석 체크] 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+
+    // 현재 사용자가 강의자인지 확인
+    if (rooms[roomId].instructorId !== socket.id) {
+      console.warn(`[출석 체크] 강의자만 출석 체크 가능: ${socket.id}`);
+      return;
+    }
+
+    // 대상 사용자 찾기
+    const user = rooms[roomId].users.find(u => u.id === userId);
+    if (user) {
+      user.attendance = status;
+      console.log(`✅ 출석 체크: ${user.name} - ${status}`);
+
+      // 모든 참여자가 출석 체크 완료했는지 확인
+      if (areAllAttendanceChecked(rooms[roomId])) {
+        console.log(`🎭 모든 참여자 출석 체크 완료! 익명 모드 활성화: ${roomId}`);
+        rooms[roomId].attendanceChecked = true;
+
+        // 각 참여자에게 익명 이름 할당
+        rooms[roomId].users.forEach(u => {
+          if (u.id !== rooms[roomId].instructorId) {
+            u.anonymousName = generateAnonymousName();
+          }
+        });
+
+        // 모든 클라이언트에게 익명 모드 활성화 알림
+        io.to(roomId).emit('anonymous-mode-activated', {
+          roomId: roomId,
+          users: rooms[roomId].users.map(u => ({
+            id: u.id,
+            name: u.isInstructor ? u.name : u.anonymousName,
+            isInstructor: u.isInstructor
+          }))
+        });
+      }
+
+      // 강의자에게 출석 현황 업데이트
+      io.to(roomId).emit('attendance-updated', {
+        userId: userId,
+        status: status,
+        users: rooms[roomId].users.map(u => ({
+          id: u.id,
+          name: u.name,
+          attendance: u.attendance
+        }))
+      });
+    }
   });
 
   // WebRTC SDP 제안 처리

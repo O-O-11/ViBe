@@ -371,6 +371,29 @@ function initializeSocket() {
         const event = new CustomEvent('socket-chat-message', { detail: { userId, userName, message, timestamp, isInstructor, imageData } });
         document.dispatchEvent(event);
     });
+
+    // ✅ 익명 모드 활성화 이벤트
+    state.socket.on('anonymous-mode-activated', (data) => {
+        const { users } = data;
+        console.log(`🎭 익명 모드 활성화! 참여자 수: ${users.length}`);
+        
+        // 참여자 목록 업데이트 (익명명 적용)
+        users.forEach(user => {
+            const participantEl = document.getElementById(`participant-${user.id}`);
+            if (participantEl) {
+                const nameContainer = participantEl.querySelector('.participant-name-container');
+                if (nameContainer) {
+                    const badge = nameContainer.querySelector('.instructor-badge');
+                    nameContainer.textContent = user.name;
+                    if (badge) {
+                        nameContainer.appendChild(badge);
+                    }
+                }
+            }
+        });
+
+        showNotification('🎭 모든 참여자의 출석이 확인되었습니다. 익명 모드가 활성화되었습니다.');
+    });
 }
 
 // ========== 회의 화면 ==========
@@ -1109,7 +1132,14 @@ function setAttendance(userId, status) {
         attendanceContainer.querySelector('.late-btn').classList.add('active', 'late');
     }
 
-    console.log(`[출석 상태] ${userId}: ${status}`);
+    // ✅ 추가: Backend에 출석 체크 요청
+    state.socket.emit('check-attendance', {
+        roomId: state.roomId,
+        userId: userId,
+        status: status
+    });
+
+    console.log(`[출석 체크] ${userId}: ${status} - Backend로 전송`);
 }
 
 function removeParticipantFromList(userId) {
