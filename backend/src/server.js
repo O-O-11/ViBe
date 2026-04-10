@@ -182,6 +182,12 @@ io.on('connection', (socket) => {
       attendance: null  // ✅ 출석 상태: null (미체크), 'present' (출석), 'late' (지각), 'absent' (결석)
     });
 
+    // ✅ 수정: 새로운 참여자(강의자 아님)가 들어오면 출석 상태 리셋
+    if (rooms[roomId].instructorId !== socket.id) {
+      rooms[roomId].attendanceChecked = false;
+      console.log(`[출석 리셋] 새로운 학생이 입장했으므로 출석 상태 리셋: ${roomId}`);
+    }
+
     console.log(`🚪 사용자 합류: ${userName}(${socket.id})이 방 ${roomId}에 입장, 강의자: ${rooms[roomId].instructorId === socket.id}`);
 
     // 방의 다른 사용자들에게 새 사용자 입장 알림
