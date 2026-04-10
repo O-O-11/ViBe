@@ -85,27 +85,32 @@ function generateNewRoom() {
 
 function handleLogin(e) {
     e.preventDefault();
-    const userName = document.getElementById('username').value.trim();
+    const usernameInput = document.getElementById('username');
+    const userName = usernameInput.value.trim();
     const roomId = document.getElementById('room-id').value.trim();
 
     if (!userName) {
-        alert('⚠️ 이름을 입력해주세요!');
-        document.getElementById('username').focus();
+        usernameInput.setCustomValidity('이름을 입력해주세요');
+        usernameInput.reportValidity();
         return;
     }
 
+    usernameInput.setCustomValidity('');
     joinRoom(userName, roomId);
 }
 
 function handleJoinExistingRoom() {
-    const userName = document.getElementById('username').value.trim();
+    const usernameInput = document.getElementById('username');
+    const userName = usernameInput.value.trim();
     const roomId = document.getElementById('join-room-id').value.trim();
 
     if (!userName) {
-        alert('⚠️ 이름을 입력해주세요!');
-        document.getElementById('username').focus();
+        usernameInput.setCustomValidity('이름을 입력해주세요');
+        usernameInput.reportValidity();
         return;
     }
+
+    usernameInput.setCustomValidity('');
 
     if (!roomId) {
         alert('⚠️ 회의 ID를 입력해주세요!');
