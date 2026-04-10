@@ -213,10 +213,10 @@ function setupSocketEvents() {
             if (anonymizeBtn) {
                 anonymizeBtn.style.display = 'block';
             }
-            // ✅ 추가: 강의자인 경우 퀴즈 출제 패널 표시
-            const quizPanel = document.getElementById('instructor-quiz-panel');
-            if (quizPanel) {
-                quizPanel.style.display = 'block';
+            // ✅ 추가: 강의자인 경우 퀴즈 탭 버튼 표시
+            const quizTabBtn = document.getElementById('quiz-tab-btn');
+            if (quizTabBtn) {
+                quizTabBtn.style.display = 'block';
             }
         }
         
@@ -591,16 +591,20 @@ function initializeConferenceScreen() {
 
     // ========== 퀴즈 이벤트 리스너 ==========
     // 강의자의 퀴즈 출제 버튼
-    const createQuizBtn = document.getElementById('create-quiz-btn');
-    if (createQuizBtn) {
-        createQuizBtn.addEventListener('click', createQuiz);
+    const submitQuizBtn = document.getElementById('submit-quiz-btn');
+    if (submitQuizBtn) {
+        submitQuizBtn.addEventListener('click', createQuiz);
     }
 
-    // 기존 UI 원소들은 현재 사용되지 않지만 호환성을 위해 유지
-    const quizOBtn = document.getElementById('quiz-o-btn');
-    const quizXBtn = document.getElementById('quiz-x-btn');
-    if (quizOBtn) quizOBtn.addEventListener('click', () => submitAnswer('O'));
-    if (quizXBtn) quizXBtn.addEventListener('click', () => submitAnswer('X'));
+    // 채팅 내 퀴즈 버튼들 (동적 생성되므로 이벤트 위임 사용)
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('quiz-answer-choice')) {
+            const answer = e.target.dataset.answer;
+            if (answer) {
+                submitAnswerFromChat(answer);
+            }
+        }
+    });
 
     const closeQuizBtn = document.getElementById('close-quiz-btn');
     if (closeQuizBtn) {
@@ -1553,7 +1557,7 @@ function renameUsername() {
 
 // ========== 퀴즈 기능 ==========
 function createQuiz() {
-    const questionInput = document.getElementById('quiz-problem-input');
+    const questionInput = document.getElementById('quiz-question-input');
     const question = questionInput.value.trim();
     const correctAnswerRadios = document.querySelectorAll('input[name="quiz-answer"]');
     let correctAnswer = null;
@@ -1589,7 +1593,7 @@ function createQuiz() {
     };
 
     // 백엔드로 퀴즈 전송
-    state.socket.emit('create-quiz', quizData);
+    state.socket.emit('quiz-created', quizData);
     console.log('📤 퀴즈 출제:', quizData);
 
     // 로컬 상태 업데이트
@@ -1648,7 +1652,7 @@ function submitAnswer(answer) {
     };
 
     // 백엔드로 응답 전송
-    state.socket.emit('submit-answer', answerData);
+    state.socket.emit('quiz-answer', answerData);
     console.log('📤 퀴즈 응답 제출:', answerData);
 
     // 로컬 상태 업데이트
@@ -1712,11 +1716,11 @@ function showQuizResults() {
     }
 
     // 백엔드에 결과 조회 요청
-    state.socket.emit('show-quiz-results', {
+    state.socket.emit('quiz-results-request', {
         roomId: state.roomId
     });
 
-    console.log('📤 퀴즈 결과 요청 - 응답 수:', Object.keys(state.quizAnswers).length);
+    console.log('📤 퀴즈 결과 요청');
 }
 
 function displayQuizResults(results) {
