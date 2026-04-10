@@ -472,6 +472,10 @@ body {
     background-color: #888;
     color: white;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
 }
 
 .attendance-btn:hover {
