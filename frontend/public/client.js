@@ -28,8 +28,36 @@ const state = {
     currentScreenShareUserId: null,
     isSidebarVisible: true,
     isInstructor: false,
-    suggestedQuestion: null
+    suggestedQuestion: null,
+    instructorId: null,
+    userColors: {}, // ✅ 사용자별 색깔 저장
+    userNames: {}   // ✅ 사용자 ID → 사용자명 매핑 (이름 변경 추적용)
 };
+
+// ✅ 사용자별 색깔 생성 함수 (userId 기반)
+function getUserColor(userId) {
+    if (state.userColors[userId]) {
+        return state.userColors[userId];
+    }
+    
+    // 색깔 팔레트 (다양한 색상)
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+        '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B195', '#C7CEEA'
+    ];
+    
+    // userId 기반 해시로 색깔 선택 (같은 사용자는 항상 같은 색깔)
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+        hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const colorIndex = Math.abs(hash) % colors.length;
+    const color = colors[colorIndex];
+    state.userColors[userId] = color;
+    
+    return color;
+}
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
@@ -191,6 +219,12 @@ function setupSocketEvents() {
     document.addEventListener('socket-offer', (e) => {
         const { from, fromName, fromIsInstructor, offer } = e.detail;
         console.log(`📤 Offer 받음: ${fromName}으로부터`);
+        
+        // ✅ 강의자 정보 저장 (시각화 용)
+        if (fromIsInstructor) {
+            state.instructorId = from;
+        }
+        
         handleOffer(from, fromName, fromIsInstructor || false, offer);
     });
 
@@ -265,8 +299,9 @@ function setupSocketEvents() {
 
     // 채팅 메시지 받음
     document.addEventListener('socket-chat-message', (e) => {
-        const { userName, message, timestamp, isInstructor, imageData } = e.detail;
-        addChatMessage(userName, message, timestamp, isInstructor, imageData);
+        const { userId, userName, message, timestamp, isInstructor, imageData } = e.detail;
+        // ✅ userId 전달해서 사용자별 색깔 관리
+        addChatMessage(userId, userName, message, timestamp, isInstructor, imageData);
     });
 }
 
@@ -338,8 +373,9 @@ function initializeSocket() {
 
     // 채팅 메시지
     state.socket.on('receive-message', (data) => {
-        const { userName, message, timestamp, isInstructor, imageData } = data;
-        const event = new CustomEvent('socket-chat-message', { detail: { userName, message, timestamp, isInstructor, imageData } });
+        const { userId, userName, message, timestamp, isInstructor, imageData } = data;
+        // ✅ userId 추가해서 전달
+        const event = new CustomEvent('socket-chat-message', { detail: { userId, userName, message, timestamp, isInstructor, imageData } });
         document.dispatchEvent(event);
     });
 }
@@ -592,10 +628,14 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
     
     // 이미 존재하는 경우 videoElement 리셋 방지
     if (!state.remoteUsers[remoteUserId]) {
+        // ✅ 강의자 여부 확인 (instructorId와 비교)
+        const isInstructor = state.instructorId === remoteUserId;
+        
         state.remoteUsers[remoteUserId] = {
             stream: stream,
             name: remoteUserName,
-            videoElement: null
+            videoElement: null,
+            isInstructor: isInstructor
         };
 
         // 원격 비디오 요소 생성
@@ -612,7 +652,13 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         if (!videoContainer) {
             videoContainer = document.createElement('div');
             videoContainer.id = `remote-video-${remoteUserId}`;
-            videoContainer.className = 'video-tile remote';
+            
+            // ✅ 강의자인 경우 instructor 클래스 추가
+            if (isInstructor) {
+                videoContainer.className = 'video-tile remote instructor-video';
+            } else {
+                videoContainer.className = 'video-tile remote';
+            }
 
             const video = document.createElement('video');
             video.id = `remote-video-element-${remoteUserId}`;
@@ -630,7 +676,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
             videoContainer.appendChild(label);
 
             remoteVideosContainer.appendChild(videoContainer);
-            console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}`);
+            console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}, 강의자: ${isInstructor}`);
 
             state.remoteUsers[remoteUserId].videoElement = video;
         }
@@ -870,16 +916,26 @@ function sendChatMessage() {
     clearImagePreview();
 }
 
-function addChatMessage(userName, message, timestamp, isInstructor = false, imageData = null) {
-    console.log(`[채팅 수신] 사용자: ${userName}, 강의자: ${isInstructor}, 메시지: ${message}`);
+function addChatMessage(userId, userName, message, timestamp, isInstructor = false, imageData = null) {
+    console.log(`[채팅 수신] 사용자 ID: ${userId}, 사용자명: ${userName}, 강의자: ${isInstructor}, 메시지: ${message}`);
+    
+    // ✅ 사용자명 업데이트 (이름 변경 추적용)
+    state.userNames[userId] = userName;
     
     const messagesContainer = document.getElementById('chat-messages');
 
     const messageEl = document.createElement('div');
     messageEl.className = 'chat-message';
 
+    // ✅ userId 기반으로 색깔 적용 (이름 변경해도 색깔 유지)
+    const userColor = getUserColor(userId);
+    messageEl.style.borderLeft = `4px solid ${userColor}`;
+
     const header = document.createElement('div');
     header.className = 'chat-message-header';
+    
+    // ✅ 사용자명 색깔 지정
+    header.style.color = userColor;
     
     if (isInstructor) {
         console.log(`[강의자 태그 추가] ${userName}`);
