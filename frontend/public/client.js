@@ -423,12 +423,12 @@ function initializeSocket() {
             }
             
             // 3️⃣ 화면의 비디오 위 이름 표시 업데이트
-            const videoElement = document.getElementById(`remote-video-${user.id}`);
-            if (videoElement) {
-                const usernameEl = videoElement.nextElementSibling; // 비디오 아래 username 요소
-                if (usernameEl && usernameEl.classList.contains('remote-username')) {
-                    usernameEl.textContent = user.name;
-                    console.log(`[익명화] 비디오 username 업데이트: ${user.id} → ${user.name}`);
+            const videoContainer = document.getElementById(`remote-video-${user.id}`);
+            if (videoContainer) {
+                const label = videoContainer.querySelector('.video-label');
+                if (label) {
+                    label.textContent = user.name;
+                    console.log(`[익명화] 비디오 label 업데이트: ${user.id} → ${user.name}`);
                 }
             }
         });
