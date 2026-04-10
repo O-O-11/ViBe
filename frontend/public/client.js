@@ -1624,8 +1624,8 @@ function displayQuiz(question) {
     const quizButtonContainer = document.createElement('div');
     quizButtonContainer.className = 'chat-quiz-buttons';
     quizButtonContainer.innerHTML = `
-        <button class="chat-quiz-btn o-btn" onclick="submitAnswerFromChat('O')">⭕ O</button>
-        <button class="chat-quiz-btn x-btn" onclick="submitAnswerFromChat('X')">❌ X</button>
+        <button class="chat-quiz-btn o-btn" onclick="submitAnswerFromChat('O')">⭕</button>
+        <button class="chat-quiz-btn x-btn" onclick="submitAnswerFromChat('X')">❌</button>
     `;
     
     chatMessages.appendChild(quizButtonContainer);
