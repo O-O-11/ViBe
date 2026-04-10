@@ -981,12 +981,19 @@ function removeParticipantFromList(userId) {
 // ========== 탭 전환 ==========
 function switchTab(e) {
     const tabName = e.target.dataset.tab;
+    const tabElement = document.getElementById(`${tabName}-tab`);
+
+    // ✅ 수정: 탭 요소가 없으면 에러 방지
+    if (!tabElement) {
+        console.warn(`탭 요소를 찾을 수 없습니다: ${tabName}-tab`);
+        return;
+    }
 
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
 
     e.target.classList.add('active');
-    document.getElementById(`${tabName}-tab`).classList.add('active');
+    tabElement.classList.add('active');
 }
 
 // ========== 회의 종료 ==========
