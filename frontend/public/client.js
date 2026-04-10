@@ -89,7 +89,8 @@ function handleLogin(e) {
     const roomId = document.getElementById('room-id').value.trim();
 
     if (!userName) {
-        showNotification('이름을 입력해주세요', 'error');
+        alert('⚠️ 이름을 입력해주세요!');
+        document.getElementById('username').focus();
         return;
     }
 
@@ -101,12 +102,14 @@ function handleJoinExistingRoom() {
     const roomId = document.getElementById('join-room-id').value.trim();
 
     if (!userName) {
-        showNotification('이름을 입력해주세요', 'error');
+        alert('⚠️ 이름을 입력해주세요!');
+        document.getElementById('username').focus();
         return;
     }
 
     if (!roomId) {
-        showNotification('회의 ID를 입력해주세요', 'error');
+        alert('⚠️ 회의 ID를 입력해주세요!');
+        document.getElementById('join-room-id').focus();
         return;
     }
 
