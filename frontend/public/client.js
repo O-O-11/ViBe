@@ -39,6 +39,13 @@ const state = {
     quizHistory: []          // ✅ 출제된 퀴즈 기록 배열
 };
 
+// ✅ HTML 이스케이핑 함수 (XSS 방지)
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // ✅ 사용자별 색깔 생성 함수 (userId 기반)
 function getUserColor(userId) {
     if (state.userColors[userId]) {
