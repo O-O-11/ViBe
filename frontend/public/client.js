@@ -442,7 +442,7 @@ async function createOffer(remoteUserId, remoteUserName, remoteUserIsInstructor 
     }
 }
 
-async function handleOffer(remoteUserId, remoteUserName, remoteUserIsInstructor = false, offer) {
+async function handleOffer(remoteUserId, remoteUserName, remoteUserIsInstructor, offer) {
     try {
         let peerConnection = state.peerConnections[remoteUserId];
 
