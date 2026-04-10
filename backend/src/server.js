@@ -220,8 +220,17 @@ io.on('connection', (socket) => {
       user.attendance = status;
       console.log(`✅ 출석 체크: ${user.name} - ${status}`);
 
+      // ✅ 추가 로깅: 출석 상태 확인
+      const attendanceStatus = rooms[roomId].users
+        .filter(u => u.id !== rooms[roomId].instructorId)
+        .map(u => ({ name: u.name, attendance: u.attendance }));
+      console.log(`[출석 상태] ${JSON.stringify(attendanceStatus)}`);
+
       // 모든 참여자가 출석 체크 완료했는지 확인
-      if (areAllAttendanceChecked(rooms[roomId])) {
+      const allChecked = areAllAttendanceChecked(rooms[roomId]);
+      console.log(`[출석 체크 완료?] ${allChecked}`);
+      
+      if (allChecked) {
         console.log(`🎭 모든 참여자 출석 체크 완료! 익명 모드 활성화: ${roomId}`);
         rooms[roomId].attendanceChecked = true;
 
@@ -229,6 +238,7 @@ io.on('connection', (socket) => {
         rooms[roomId].users.forEach(u => {
           if (u.id !== rooms[roomId].instructorId) {
             u.anonymousName = generateAnonymousName();
+            console.log(`[익명명 생성] ${u.name} → ${u.anonymousName}`);
           }
         });
 
@@ -241,6 +251,7 @@ io.on('connection', (socket) => {
             isInstructor: u.isInstructor
           }))
         });
+        console.log(`[익명 모드] 모든 클라이언트에 전송됨`);
       }
 
       // 강의자에게 출석 현황 업데이트
