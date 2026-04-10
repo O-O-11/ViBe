@@ -475,13 +475,14 @@ function initializeSocket() {
     // ========== 퀴즈 이벤트 리스너 ==========
     // 퀴즈 출제됨
     state.socket.on('quiz-created', (data) => {
-        const { question, correctAnswer, instructorName, timestamp } = data;
-        console.log(`❓ 퀴즈 출제됨: ${question} (정답: ${correctAnswer})`);
+        const { quizId, question, correctAnswer, instructorName, timestamp } = data;
+        console.log(`❓ 퀴즈 출제됨: ${question} (정답: ${correctAnswer}) [ID: ${quizId}]`);
         
         state.currentQuiz = {
+            quizId: quizId,  // ✅ quizId 포함
             question: question,
             correctAnswer: correctAnswer,
-            timestamp: timestamp
+            timestamp: timestamp || Date.now()
         };
         state.correctAnswer = correctAnswer;
         state.quizAnswers = {};
@@ -1626,6 +1627,7 @@ function createQuiz() {
 
     // ✅ 출제 기록 화면에 표시
     addQuizToHistory(quizHistoryEntry);
+    console.log('✅ 로컬 출제 기록 추가됨:', quizHistoryEntry);
 
     // UI 업데이트: 입력폼만 초기화 (displayQuiz는 socket-quiz-created 이벤트에서 호출됨)
     questionInput.value = '';

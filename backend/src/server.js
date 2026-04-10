@@ -430,7 +430,7 @@ io.on('connection', (socket) => {
 
   // ❓ 퀴즈 출제 (quiz-created 이벤트)
   socket.on('quiz-created', (data) => {
-    const { roomId, question, correctAnswer } = data;
+    const { roomId, question, correctAnswer, quizId } = data;
     
     if (!rooms[roomId]) {
       console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
@@ -443,7 +443,7 @@ io.on('connection', (socket) => {
     }
     
     const quiz = {
-      id: Date.now().toString(),
+      id: quizId || Date.now().toString(),  // ✅ 클라이언트의 quizId 사용
       question: question,
       correctAnswer: correctAnswer,
       createdBy: socket.id,
@@ -453,10 +453,11 @@ io.on('connection', (socket) => {
     rooms[roomId].quizzes.push(quiz);
     rooms[roomId].currentQuiz = quiz;
     
-    console.log(`❓ 퀴즈 출제: "${question}" (정답: ${correctAnswer})`);
+    console.log(`❓ 퀴즈 출제: "${question}" (정답: ${correctAnswer}) [ID: ${quiz.id}]`);
     
     // 모든 사용자에게 퀴즈 브로드캐스트
     io.to(roomId).emit('quiz-created', {
+      quizId: quiz.id,  // ✅ quizId 포함
       question: question,
       correctAnswer: correctAnswer,
       instructorName: socket.data?.userName || '강의자'
