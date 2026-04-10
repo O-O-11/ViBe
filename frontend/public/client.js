@@ -248,26 +248,7 @@ function setupSocketEvents() {
                 }
             }
         }
-        
-        removeParticipantFromList(userId);
-    });
 
-    // 화면 공유 시작
-    document.addEventListener('socket-screen-share-start', (e) => {
-        const { userId, userName } = e.detail;
-        showNotification(`${userName}님이 화면을 공유하고 있습니다`);
-        state.currentScreenShareUserId = userId;
-        handleScreenShareStart(userId, userName);
-    });
-
-    // 화면 공유 종료
-    document.addEventListener('socket-screen-share-stop', (e) => {
-        const { userId } = e.detail;
-        state.currentScreenShareUserId = null;
-        handleScreenShareEnd(userId);
-    });
-
-    // 채팅 메시지 받음
     document.addEventListener('socket-chat-message', (e) => {
         const { userName, message, timestamp, isInstructor, imageData } = e.detail;
         addChatMessage(userName, message, timestamp, isInstructor, imageData);
