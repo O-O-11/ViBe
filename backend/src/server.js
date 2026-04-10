@@ -472,6 +472,92 @@ io.on('connection', (socket) => {
 
     delete users[socket.id];
   });
+
+  // ❓ 퀴즈 출제
+  socket.on('quiz-submitted', (data) => {
+    const { roomId, quiz } = data;
+    
+    if (!rooms[roomId]) {
+      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+    
+    console.log(`❓ 퀴즈 출제됨: ${quiz.question}`);
+    console.log(`   정답: ${quiz.correctAnswer}`);
+    
+    // 모든 사용자에게 퀴즈 전송 (강의자 제외)
+    io.to(roomId).emit('quiz-posted', {
+      quiz: quiz
+    });
+  });
+
+  // ❓ 퀴즈 응답
+  socket.on('quiz-response', (data) => {
+    const { roomId, quizId, answer, userId, userName } = data;
+    
+    if (!rooms[roomId]) {
+      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+    
+    console.log(`✅ 퀴즈 응답: ${userName}(${userId}) - ${answer}`);
+    
+    // Backend에서 응답 집계
+    if (!rooms[roomId].quizResponses) {
+      rooms[roomId].quizResponses = {};
+    }
+    
+    if (!rooms[roomId].quizResponses[quizId]) {
+      rooms[roomId].quizResponses[quizId] = { O: [], X: [] };
+    }
+    
+    rooms[roomId].quizResponses[quizId][answer].push({
+      userId: userId,
+      userName: userName,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 응답 확인 알림 전송 (본인과 강의자만)
+    socket.emit('quiz-response-confirmed', {
+      quizId: quizId,
+      answer: answer
+    });
+    
+    // 강의자에게 응답 현황 전송
+    const room = rooms[roomId];
+    const instructor = room.users.find(u => u.isInstructor);
+    if (instructor) {
+      io.to(instructor.id).emit('quiz-response-update', {
+        quizId: quizId,
+        responses: room.quizResponses[quizId]
+      });
+    }
+  });
+
+  // ❓ 퀴즈 결과 조회
+  socket.on('quiz-results-request', (data) => {
+    const { roomId, quizId } = data;
+    
+    if (!rooms[roomId]) {
+      console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
+      return;
+    }
+    
+    const responses = rooms[roomId].quizResponses?.[quizId] || { O: [], X: [] };
+    
+    console.log(`📊 퀴즈 ${quizId} 결과:`);
+    console.log(`   O: ${responses.O.length}명`);
+    console.log(`   X: ${responses.X.length}명`);
+    
+    socket.emit('quiz-results', {
+      quizId: quizId,
+      results: {
+        O: responses.O.length,
+        X: responses.X.length,
+        participants: responses
+      }
+    });
+  });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -481,5 +567,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`⏰ 시작 시각: ${now}\n`);
   console.log(`📍 API Health Check: http://0.0.0.0:${PORT}/api/health`);
   console.log(`📍 Question Refinement API: POST http://0.0.0.0:${PORT}/api/refine-question\n`);
-  console.log(`🔍 연결된 Socket.IO 핸들러: activate-anonymous-mode, check-attendance 등\n`);
+  console.log(`🔍 연결된 Socket.IO 핸들러: activate-anonymous-mode, check-attendance, quiz-* 등\n`);
 });

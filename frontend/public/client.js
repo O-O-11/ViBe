@@ -30,7 +30,10 @@ const state = {
     isInstructor: false,
     suggestedQuestion: null,
     userColors: {}, // ✅ 사용자별 색깔 저장
-    userNames: {}   // ✅ 사용자 ID → 사용자명 매핑 (이름 변경 추적용)
+    userNames: {},   // ✅ 사용자 ID → 사용자명 매핑 (이름 변경 추적용)
+    quizzes: [],     // ❓ 출제된 퀴즈 목록
+    userQuizAnswers: {}, // ❓ 사용자가 선택한 답변 (quizId -> answer)
+    quizResponses: {} // ❓ 각 퀴즈 응답 모음 (quizId -> {userId: answer})
 };
 
 // ✅ 사용자별 색깔 생성 함수 (userId 기반)
@@ -208,6 +211,8 @@ function setupSocketEvents() {
             if (anonymizeBtn) {
                 anonymizeBtn.style.display = 'block';
             }
+            // ❓ 추가: 강의자인 경우 퀴즈 탭 표시
+            enableQuizTab();
         }
         
         // ✅ 수정: Backend에서 보낸 totalUsers 직접 사용 (또는 계산)
@@ -460,6 +465,36 @@ function initializeSocket() {
 
         showNotification('🎭 익명 모드가 활성화되었습니다');
     });
+
+    // ❓ 퀴즈 포스트 (강의자가 출제한 퀴즈를 학생들이 받음)
+    state.socket.on('quiz-posted', (data) => {
+        const { quiz } = data;
+        console.log(`❓ 퀴즈 수신: ${quiz.question}`);
+        
+        displayQuizInChat(quiz);
+    });
+
+    // ❓ 퀴즈 응답 확인
+    state.socket.on('quiz-response-confirmed', (data) => {
+        const { quizId, answer } = data;
+        console.log(`✅ 퀴즈 응답 확인: ${answer}`);
+    });
+
+    // ❓ 퀴즈 응답 업데이트 (강의자가 실시간 응답 수 확인)
+    state.socket.on('quiz-response-update', (data) => {
+        const { quizId, responses } = data;
+        console.log(`📊 퀴즈 응답 업데이트:`, responses);
+        
+        // 출제 기록 업데이트 (나중에 구현)
+    });
+
+    // ❓ 퀴즈 결과 수신
+    state.socket.on('quiz-results', (data) => {
+        const { quizId, results } = data;
+        console.log(`📊 퀴즈 ${quizId} 최종 결과:`, results);
+        
+        showNotification(`📊 O: ${results.O}명 | X: ${results.X}명`, 'info');
+    });
 }
 
 // ========== 회의 화면 ==========
@@ -545,6 +580,11 @@ function initializeConferenceScreen() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', switchTab);
     });
+
+    // ❓ 퀴즈 기능 초기화
+    enableQuizTab();
+    initializeQuizPanel();
+}
 
     // 화면 공유 닫기
     document.getElementById('close-screen-share-btn').addEventListener('click', closeScreenShare);
@@ -1276,6 +1316,205 @@ function activateAnonymousMode() {
     // Backend에 익명 모드 활성화 요청
     console.log('📤 Backend에 activate-anonymous-mode 전송 중...');
     console.log('📡 roomId:', state.roomId);
+    
+    state.socket.emit('activate-anonymous-mode', {
+        roomId: state.roomId,
+        socketId: state.socket.id
+    }, (error) => {
+        if (error) {
+            console.error('❌ 익명 모드 활성화 실패:', error);
+            showNotification('익명 모드 활성화 실패', 'error');
+        } else {
+            console.log('✅ Backend가 activate-anonymous-mode를 수신했습니다!');
+        }
+    });
+    
+    console.log('✅ 익명 모드 활성화 요청 전송 완료: ' + state.roomId);
+    showNotification('🎭 익명 모드를 활성화했습니다', 'success');
+}
+
+// ========== ❓ 퀴즈 관련 함수 ==========
+
+// 강의자 입장 시 퀴즈 탭 표시
+function enableQuizTab() {
+    if (state.isInstructor) {
+        const quizTabBtn = document.getElementById('quiz-tab-btn');
+        if (quizTabBtn) {
+            quizTabBtn.style.display = 'block';
+        }
+    }
+}
+
+// 퀴즈 출제 버튼 클릭
+function initializeQuizPanel() {
+    const submitQuizBtn = document.getElementById('submit-quiz-btn');
+    if (submitQuizBtn) {
+        submitQuizBtn.addEventListener('click', submitQuiz);
+    }
+}
+
+// 퀴즈 문제 출제
+function submitQuiz() {
+    const questionInput = document.getElementById('quiz-question-input');
+    const answerRadios = document.querySelectorAll('input[name="quiz-answer"]:checked');
+    
+    if (!questionInput.value.trim()) {
+        showNotification('문제를 입력해주세요', 'error');
+        return;
+    }
+    
+    if (answerRadios.length === 0) {
+        showNotification('정답을 선택해주세요', 'error');
+        return;
+    }
+    
+    const correctAnswer = answerRadios[0].value;
+    const quizId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    
+    const quiz = {
+        id: quizId,
+        question: questionInput.value.trim(),
+        correctAnswer: correctAnswer,
+        createdBy: state.socket.id,
+        createdAt: new Date().toISOString(),
+        responses: {}
+    };
+    
+    // 로컬 상태에 저장
+    state.quizzes.push(quiz);
+    state.quizResponses[quizId] = {};
+    
+    // Backend에 전송
+    state.socket.emit('quiz-submitted', {
+        roomId: state.roomId,
+        quiz: quiz
+    });
+    
+    // 퀴즈 출제 기록 업데이트
+    addQuizToHistory(quiz);
+    
+    // 입력 필드 초기화
+    questionInput.value = '';
+    document.querySelectorAll('input[name="quiz-answer"]').forEach(r => r.checked = false);
+    
+    showNotification('✅ 퀴즈를 출제했습니다', 'success');
+}
+
+// 퀴즈 출제 기록에 추가
+function addQuizToHistory(quiz) {
+    const historyList = document.getElementById('quiz-history-list');
+    if (!historyList) return;
+    
+    const historyItem = document.createElement('div');
+    historyItem.className = 'quiz-history-item';
+    historyItem.innerHTML = `
+        <div class="quiz-question-text">${escapeHtml(quiz.question)}</div>
+        <div class="quiz-answer-text">정답: <strong>${quiz.correctAnswer}</strong></div>
+        <div class="quiz-results-container">
+            <button class="quiz-result-btn" onclick="showQuizResults('${quiz.id}')">
+                📊 결과보기
+            </button>
+        </div>
+    `;
+    historyList.insertBefore(historyItem, historyList.firstChild);
+}
+
+// 채팅창에 퀴즈 표시
+function displayQuizInChat(quiz) {
+    const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message';
+    messageDiv.innerHTML = `
+        <div style="font-size: 12px; color: #aaa; margin-bottom: 4px;">
+            📋 강의자로부터 퀴즈 | ${new Date().toLocaleTimeString('ko-KR')}
+        </div>
+        <div class="chat-quiz">
+            <div class="chat-quiz-question">${escapeHtml(quiz.question)}</div>
+            <div class="chat-quiz-buttons">
+                <button class="quiz-answer-choice" onclick="respondToQuiz('${quiz.id}', 'O')">O</button>
+                <button class="quiz-answer-choice" onclick="respondToQuiz('${quiz.id}', 'X')">X</button>
+            </div>
+            <div class="quiz-info-text">
+                <span id="quiz-${quiz.id}-status">답변 대기 중...</span>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// 학생이 퀴즈에 응답
+function respondToQuiz(quizId, answer) {
+    if (state.isInstructor) {
+        showNotification('강의자는 응답할 수 없습니다', 'error');
+        return;
+    }
+    
+    // 이미 응답했으면 중복 응답 방지
+    if (state.userQuizAnswers[quizId]) {
+        showNotification('이미 응답했습니다', 'info');
+        return;
+    }
+    
+    // 로컬 상태에 저장
+    state.userQuizAnswers[quizId] = answer;
+    
+    // Backend에 전송
+    state.socket.emit('quiz-response', {
+        roomId: state.roomId,
+        quizId: quizId,
+        answer: answer,
+        userId: state.socket.id,
+        userName: state.userName
+    });
+    
+    // UI 업데이트 - 버튼 비활성화
+    const quizButtons = document.querySelectorAll(`#chat-quiz-${quizId} .quiz-answer-choice`);
+    quizButtons.forEach(btn => {
+        btn.classList.add('submitted');
+        btn.disabled = true;
+        if (btn.textContent === answer) {
+            btn.classList.add('my-answer');
+        }
+    });
+    
+    // 상태 텍스트 업데이트
+    const statusEl = document.getElementById(`quiz-${quizId}-status`);
+    if (statusEl) {
+        statusEl.textContent = `✅ ${answer}로 응답했습니다`;
+    }
+    
+    showNotification(`✅ ${answer}로 응답했습니다`, 'success');
+}
+
+// 퀴즈 결과 보기 (강의자만)
+function showQuizResults(quizId) {
+    if (!state.isInstructor) {
+        showNotification('강의자만 결과를 볼 수 있습니다', 'error');
+        return;
+    }
+    
+    // Backend에 결과 요청
+    state.socket.emit('quiz-results-request', {
+        roomId: state.roomId,
+        quizId: quizId
+    });
+}
+
+// HTML 특수문자 이스케이프 (XSS 방지)
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
     
     const emitStartTime = Date.now();
     

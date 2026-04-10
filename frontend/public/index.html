@@ -98,6 +98,9 @@
                     <button class="tab-btn active" data-tab="participants">
                         👥 참여자 (<span id="participant-count">1</span>)
                     </button>
+                    <button class="tab-btn" data-tab="quiz" id="quiz-tab-btn" style="display: none;">
+                        ❓ 퀴즈
+                    </button>
                     <button class="tab-btn" data-tab="chat">
                         💬 채팅
                     </button>
@@ -119,6 +122,41 @@
                     <button id="anonymize-btn" class="anonymize-btn" style="display: none;">
                         🎭 익명화
                     </button>
+                </div>
+
+                <!-- 퀴즈 탭 (강의자 전용) -->
+                <div id="quiz-tab" class="tab-content">
+                    <div class="quiz-panel">
+                        <div class="quiz-form">
+                            <h3>❓ 퀴즈 출제</h3>
+                            <div class="form-group">
+                                <label>문제</label>
+                                <textarea 
+                                    id="quiz-question-input" 
+                                    placeholder="퀴즈 문제를 입력하세요"
+                                    rows="3"
+                                ></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>정답</label>
+                                <div class="quiz-answer-options">
+                                    <label class="radio-label">
+                                        <input type="radio" name="quiz-answer" value="O"> O
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="quiz-answer" value="X"> X
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="button-group">
+                                <button id="submit-quiz-btn" class="btn-primary">출제</button>
+                            </div>
+                        </div>
+                        <div class="quiz-history">
+                            <h3>📋 출제 기록</h3>
+                            <div id="quiz-history-list" class="quiz-history-list"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 채팅 탭 -->
