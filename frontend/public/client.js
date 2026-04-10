@@ -35,7 +35,8 @@ const state = {
     currentQuiz: null,       // {question: string, correctAnswer: 'O' or 'X', timestamp: number}
     quizAnswers: {},         // {userId: 'O' or 'X'}
     hasAnsweredQuiz: false,  // 현재 퀴즈에 대한 본인의 응답 여부
-    correctAnswer: null      // 현재 퀴즈의 정답 (강의자가 설정)
+    correctAnswer: null,     // 현재 퀴즈의 정답 (강의자가 설정)
+    quizHistory: []          // ✅ 출제된 퀴즈 기록 배열
 };
 
 // ✅ 사용자별 색깔 생성 함수 (userId 기반)
@@ -1607,6 +1608,17 @@ function createQuiz() {
     state.quizAnswers = {};
     state.hasAnsweredQuiz = false;
 
+    // ✅ 출제 기록에 추가
+    state.quizHistory.push({
+        question: question,
+        correctAnswer: correctAnswer,
+        timestamp: Date.now(),
+        instructorName: state.userName
+    });
+
+    // ✅ 출제 기록 화면에 표시
+    addQuizToHistory(question, correctAnswer);
+
     // UI 업데이트: 입력폼만 초기화 (displayQuiz는 socket-quiz-created 이벤트에서 호출됨)
     questionInput.value = '';
     
@@ -1735,6 +1747,30 @@ function displayQuizResults(results) {
 
     // 채팅에 결과 메시지 추가
     addChatMessage('시스템', '📊 퀴즈 결과', `⭕ O: ${results.oCount}명 | ❌ X: ${results.xCount}명`, Date.now(), false);
+}
+
+// ✅ 출제 기록에 퀴즈 추가
+function addQuizToHistory(question, correctAnswer) {
+    const quizHistoryList = document.getElementById('quiz-history-list');
+    if (!quizHistoryList) {
+        console.warn('quiz-history-list 요소를 찾을 수 없습니다');
+        return;
+    }
+
+    const timestamp = new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    
+    const quizItem = document.createElement('div');
+    quizItem.className = 'quiz-history-item';
+    quizItem.innerHTML = `
+        <div class="quiz-history-content">
+            <div class="quiz-history-question">❓ ${escapeHtml(question)}</div>
+            <div class="quiz-history-answer">정답: ${correctAnswer === 'O' ? '⭕ O' : '❌ X'}</div>
+            <div class="quiz-history-time">${timestamp}</div>
+        </div>
+    `;
+    
+    quizHistoryList.insertBefore(quizItem, quizHistoryList.firstChild);
+    console.log('✅ 퀴즈 기록 추가됨:', question);
 }
 
 function closeQuiz() {
