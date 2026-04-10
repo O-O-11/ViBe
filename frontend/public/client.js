@@ -1297,10 +1297,23 @@ function activateAnonymousMode() {
 // ✅ 강의실 코드 복사
 function copyRoomCode() {
     const roomCode = document.getElementById('current-room-id').textContent;
+    const copyBtn = document.getElementById('copy-room-code-btn');
+    
     navigator.clipboard.writeText(roomCode).then(() => {
-        showNotification(`"${roomCode}" 복사됨!`, 'success');
+        // 버튼 임시 변경
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = '✅';
+        copyBtn.classList.add('copied');
+        
+        showNotification(`"${roomCode}" 복사되었습니다! ✅`, 'success');
+        
+        // 2초 후 원래 상태로 복원
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.classList.remove('copied');
+        }, 2000);
     }).catch(() => {
-        showNotification('복사 실패', 'error');
+        showNotification('복사 실패 ❌', 'error');
     });
 }
 
