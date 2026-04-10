@@ -148,6 +148,11 @@ app.get('/api/health', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`✅ 새로운 사용자 연결: ${socket.id}`);
 
+  // 🔴 모든 이벤트 디버깅
+  socket.onAny((eventName, ...args) => {
+    console.error(`🔴 [모든 이벤트] ${eventName}:`, args);
+  });
+
   // 사용자 등록
   socket.on('register-user', (userData) => {
     users[socket.id] = {
