@@ -279,6 +279,7 @@ io.on('connection', (socket) => {
   });
 
   // ✅ 익명 모드 활성화 이벤트 (버튼 클릭 시)
+  console.log('✅ [시스템] activate-anonymous-mode 핸들러 등록됨 - socket:', socket.id);
   socket.on('activate-anonymous-mode', (data) => {
     console.error('🔴 [DEBUG] activate-anonymous-mode 이벤트 수신됨!');
     console.error('📋 받은 데이터:', JSON.stringify(data));

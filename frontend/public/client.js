@@ -1232,13 +1232,16 @@ function activateAnonymousMode() {
     console.log('📤 Backend에 activate-anonymous-mode 전송 중...');
     console.log('📡 roomId:', state.roomId);
     
+    const emitStartTime = Date.now();
+    
     state.socket.emit('activate-anonymous-mode', {
         roomId: state.roomId
     }, (error) => {
+        const emitDuration = Date.now() - emitStartTime;
         if (error) {
-            console.error('❌ emit 에러:', error);
+            console.error(`❌ [${emitDuration}ms] emit 콜백 에러:`, error);
         } else {
-            console.log('✅ emit 전송 성공');
+            console.log(`✅ [${emitDuration}ms] emit 콜백 도착 - 에러 없음`);
         }
     });
 
