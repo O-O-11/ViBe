@@ -237,33 +237,8 @@ io.on('connection', (socket) => {
         .map(u => ({ name: u.name, attendance: u.attendance }));
       console.log(`[출석 상태] ${JSON.stringify(attendanceStatus)}`);
 
-      // 모든 참여자가 출석 체크 완료했는지 확인
-      const allChecked = areAllAttendanceChecked(rooms[roomId]);
-      console.log(`[출석 체크 완료?] ${allChecked}`);
-      
-      if (allChecked) {
-        console.log(`🎭 모든 참여자 출석 체크 완료! 익명 모드 활성화: ${roomId}`);
-        rooms[roomId].attendanceChecked = true;
-
-        // 각 참여자에게 익명 이름 할당
-        rooms[roomId].users.forEach(u => {
-          if (u.id !== rooms[roomId].instructorId) {
-            u.anonymousName = generateAnonymousName();
-            console.log(`[익명명 생성] ${u.name} → ${u.anonymousName}`);
-          }
-        });
-
-        // 모든 클라이언트에게 익명 모드 활성화 알림
-        io.to(roomId).emit('anonymous-mode-activated', {
-          roomId: roomId,
-          users: rooms[roomId].users.map(u => ({
-            id: u.id,
-            name: u.isInstructor ? u.name : u.anonymousName,
-            isInstructor: u.isInstructor
-          }))
-        });
-        console.log(`[익명 모드] 모든 클라이언트에 전송됨`);
-      }
+      // ✅ 수정: 출석 체크는 상태만 업데이트하고, 익명 모드는 버튼 클릭시에만 활성화!
+      // 더 이상 여기서 자동으로 익명 모드를 활성화하지 않음
 
       // 강의자에게 출석 현황 업데이트
       io.to(roomId).emit('attendance-updated', {
