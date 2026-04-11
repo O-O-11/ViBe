@@ -1864,6 +1864,8 @@ function showQuizResults() {
 
 function displayQuizResults(results, quizId, correctAnswer) {
     console.log('📊 퀴즈 결과:', results, 'quizId:', quizId, '정답:', correctAnswer);
+    console.log('🔍 현재 state.quizAnswers 전체:', state.quizAnswers);
+    console.log('🔍 현재 사용자 ID:', state.socket.id);
 
     document.getElementById('current-quiz-display').style.display = 'none';
     document.getElementById('quiz-creator-section').style.display = 'block';
@@ -1886,6 +1888,10 @@ function displayQuizResults(results, quizId, correctAnswer) {
         // ✅ 수정: quizId로 정확한 퀴즈 버튼 컨테이너 찾기
         const targetQuizContainer = document.querySelector(`.chat-quiz-buttons[data-quiz-id="${quizId}"]`);
         const lastQuizButtonContainer = targetQuizContainer || quizButtonContainers[quizButtonContainers.length - 1];
+        
+        console.log('🔍 targetQuizContainer:', targetQuizContainer ? '찾음' : '못 찾음');
+        console.log('🔍 lastQuizButtonContainer:', lastQuizButtonContainer ? '찾음' : '못 찾음');
+        
         const oBtns = lastQuizButtonContainer.querySelectorAll('.o-btn');
         const xBtns = lastQuizButtonContainer.querySelectorAll('.x-btn');
         
@@ -1912,8 +1918,12 @@ function displayQuizResults(results, quizId, correctAnswer) {
         }
 
         // ✅ 사용자가 고른 답 색상 표시 (맞으면 초록색, 틀리면 빨간색)
+        console.log(`🔍 quizId=${quizId}에 해당하는 응답 찾기...`);
+        console.log(`🔍 state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
+        
         const userAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
-        console.log(`🔍 quizId=${quizId}, userAnswer=${userAnswer}, correctAnswer=${correctAnswer}`);
+        console.log(`🔍 사용자 ${state.socket.id}의 응답: ${userAnswer}`);
+        console.log(`🔍 정답: ${correctAnswer}`);
         
         if (userAnswer) {
             // ✅ 수정: 백엔드에서 받은 정답 직접 사용 (학생도 정답을 알 수 있음)
@@ -1939,6 +1949,9 @@ function displayQuizResults(results, quizId, correctAnswer) {
             }
         } else {
             console.warn(`⚠️ userAnswer를 찾을 수 없습니다. state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
+            console.warn(`⚠️ 응답이 없는 이유:`);
+            console.warn(`   - state.quizAnswers[${quizId}] 존재? ${state.quizAnswers[quizId] ? '예' : '아니오'}`);
+            console.warn(`   - 응답 개수: ${state.quizAnswers[quizId] ? Object.keys(state.quizAnswers[quizId]).length : 0}`);
         }
     }
 
