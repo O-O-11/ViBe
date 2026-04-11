@@ -1620,25 +1620,36 @@ function renameUsername() {
 
 // ========== 퀴즈 기능 ==========
 function createQuiz() {
+    console.log('🔍 createQuiz() 함수 시작');
+    
     const questionInput = document.getElementById('quiz-question-input');
     const question = questionInput.value.trim();
-    // ✅ 수정: 모든 quiz-answer 라디오를 선택하지 않고, 특정 ID만 선택
+    console.log('📝 입력된 문제:', question);
+    
+    // ✅ 라디오 버튼 검색 및 확인
     const correctAnswerRadios = document.querySelectorAll('input[name="quiz-answer-form"]');
+    console.log('🔍 찾은 라디오 버튼 개수:', correctAnswerRadios.length);
+    
     let correctAnswer = null;
     
     for (const radio of correctAnswerRadios) {
+        console.log(`📻 라디오 버튼 - value: ${radio.value}, checked: ${radio.checked}`);
         if (radio.checked) {
             correctAnswer = radio.value;
             break;
         }
     }
     
+    console.log('✅ 최종 정답:', correctAnswer);
+    
     if (!question) {
+        console.warn('⚠️ 문제를 입력하지 않음');
         showNotification('퀴즈 문제를 입력해주세요', 'error');
         return;
     }
 
     if (!correctAnswer) {
+        console.warn('⚠️ 정답을 선택하지 않음');
         showNotification('정답을 선택해주세요', 'error');
         return;
     }
