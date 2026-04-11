@@ -33,8 +33,9 @@ const state = {
     userNames: {},   // ✅ 사용자 ID → 사용자명 매핑 (이름 변경 추적용)
     // ✅ 퀴즈 관련 데이터
     currentQuiz: null,       // {question: string, correctAnswer: 'O' or 'X', timestamp: number}
-    quizAnswers: {},         // {userId: 'O' or 'X'}
-    hasAnsweredQuiz: false,  // 현재 퀴즈에 대한 본인의 응답 여부
+    quizAnswersByQuiz: {},   // {quizId: {userId: 'O' or 'X'}}
+    quizSelections: {},      // {quizId: 'O' or 'X'}
+    hasAnsweredByQuiz: {},   // {quizId: boolean}
     correctAnswer: null,     // 현재 퀴즈의 정답 (강의자가 설정)
     quizHistory: []          // ✅ 출제된 퀴즈 기록 배열
 };
@@ -44,6 +45,22 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function getQuizAnswers(quizId) {
+    if (!quizId) {
+        return {};
+    }
+
+    if (!state.quizAnswersByQuiz[quizId]) {
+        state.quizAnswersByQuiz[quizId] = {};
+    }
+
+    return state.quizAnswersByQuiz[quizId];
+}
+
+function hasAnsweredQuiz(quizId) {
+    return Boolean(quizId && state.hasAnsweredByQuiz[quizId]);
 }
 
 // ✅ 사용자별 색깔 생성 함수 (userId 기반)
@@ -492,18 +509,20 @@ function initializeSocket() {
             timestamp: timestamp || Date.now()
         };
         state.correctAnswer = correctAnswer;
-        state.quizAnswers = {};
-        state.hasAnsweredQuiz = false;
+        getQuizAnswers(quizId);
+        state.quizSelections[quizId] = null;
+        state.hasAnsweredByQuiz[quizId] = false;
 
-        displayQuiz(question);
+        displayQuiz({ quizId, question });
     });
 
     // 퀴즈 결과
     state.socket.on('quiz-results-data', (data) => {
-        const { question, oCount, xCount, totalAnswers, answers } = data;
+        const { quizId, question, oCount, xCount, totalAnswers, answers } = data;
         console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}`);
         
         const results = {
+            quizId: quizId,
             question: question,
             oCount: oCount,
             xCount: xCount,
@@ -607,11 +626,14 @@ function initializeConferenceScreen() {
 
     // 채팅 내 퀴즈 버튼들 (동적 생성되므로 이벤트 위임 사용)
     document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('quiz-answer-choice')) {
-            const answer = e.target.dataset.answer;
-            if (answer) {
-                submitAnswerFromChat(answer);
-            }
+        const quizButton = e.target.closest('.chat-quiz-btn');
+        if (!quizButton) {
+            return;
+        }
+
+        const { answer, quizId } = quizButton.dataset;
+        if (answer && quizId) {
+            submitAnswerFromChat(answer, quizId, quizButton);
         }
     });
 
@@ -1135,6 +1157,12 @@ function addChatMessage(userId, userName, message, timestamp, isInstructor = fal
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
+function appendChatElement(element) {
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.appendChild(element);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
 // 파일 선택 처리
 function handleFileSelect(event) {
     const file = event.target.files[0];
@@ -1617,8 +1645,9 @@ function createQuiz() {
         instructorId: state.socket.id
     };
     state.correctAnswer = correctAnswer;
-    state.quizAnswers = {};
-    state.hasAnsweredQuiz = false;
+    getQuizAnswers(quizId);
+    state.quizSelections[quizId] = null;
+    state.hasAnsweredByQuiz[quizId] = false;
 
     // ✅ 출제 기록에 추가 (응답 결과 초기화)
     const quizHistoryEntry = {
@@ -1645,22 +1674,30 @@ function createQuiz() {
     correctAnswerRadios.forEach(radio => radio.checked = false);
 }
 
-function displayQuiz(question) {
-    // 채팅창에 퀴즈 문제 표시
-    addChatMessage('시스템', '❓ 퀴즈', question, Date.now(), false);
-    
-    // 채팅 메시지 영역에 O/X 버튼 추가
-    const chatMessages = document.getElementById('chat-messages');
-    
-    const quizButtonContainer = document.createElement('div');
-    quizButtonContainer.className = 'chat-quiz-buttons';
-    quizButtonContainer.innerHTML = `
-        <button class="chat-quiz-btn o-btn" onclick="submitAnswerFromChat('O')">⭕</button>
-        <button class="chat-quiz-btn x-btn" onclick="submitAnswerFromChat('X')">❌</button>
+function displayQuiz(quiz) {
+    const { quizId, question } = quiz;
+    const quizCard = document.createElement('div');
+    quizCard.className = 'chat-quiz-card';
+    quizCard.dataset.quizId = quizId;
+    quizCard.innerHTML = `
+        <div class="chat-quiz-header">❓ 퀴즈</div>
+        <div class="chat-quiz-question">${escapeHtml(question)}</div>
+        <div class="chat-quiz-buttons" data-quiz-id="${quizId}">
+            <button type="button" class="chat-quiz-btn o-btn" data-answer="O" data-quiz-id="${quizId}" aria-pressed="false">
+                <span class="quiz-choice-icon">⭕</span>
+                <span class="quiz-choice-label">O 선택</span>
+                <span class="quiz-count o-count"></span>
+            </button>
+            <button type="button" class="chat-quiz-btn x-btn" data-answer="X" data-quiz-id="${quizId}" aria-pressed="false">
+                <span class="quiz-choice-icon">❌</span>
+                <span class="quiz-choice-label">X 선택</span>
+                <span class="quiz-count x-count"></span>
+            </button>
+        </div>
     `;
-    
-    chatMessages.appendChild(quizButtonContainer);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    appendChatElement(quizCard);
+    syncQuizSelectionUI(quizId);
 }
 
 function submitAnswer(answer) {
@@ -1669,7 +1706,10 @@ function submitAnswer(answer) {
         return;
     }
 
-    if (state.hasAnsweredQuiz) {
+    const quizId = state.currentQuiz.quizId;
+    const quizAnswers = getQuizAnswers(quizId);
+
+    if (hasAnsweredQuiz(quizId)) {
         showNotification('이미 응답했습니다', 'info');
         return;
     }
@@ -1678,7 +1718,8 @@ function submitAnswer(answer) {
         roomId: state.roomId,
         userId: state.socket.id,
         userName: state.userName,
-        answer: answer
+        answer: answer,
+        quizId: quizId
     };
 
     // 백엔드로 응답 전송
@@ -1686,25 +1727,35 @@ function submitAnswer(answer) {
     console.log('📤 퀴즈 응답 제출:', answerData);
 
     // 로컬 상태 업데이트
-    state.hasAnsweredQuiz = true;
-    state.quizAnswers[state.socket.id] = answer;
+    state.hasAnsweredByQuiz[quizId] = true;
+    quizAnswers[state.socket.id] = answer;
+    state.quizSelections[quizId] = answer;
+    syncQuizSelectionUI(quizId);
 
     showNotification(`${answer}를 선택했습니다`, 'success');
 }
 
 // 채팅에서의 응답 처리
-function submitAnswerFromChat(answer) {
-    if (!state.currentQuiz) {
+function submitAnswerFromChat(answer, quizId = state.currentQuiz?.quizId, triggerElement = null) {
+    if (!quizId) {
         showNotification('진행 중인 퀴즈가 없습니다', 'error');
         return;
     }
+
+    const activeQuizId = state.currentQuiz?.quizId;
+    if (activeQuizId && quizId !== activeQuizId) {
+        showNotification('이 퀴즈는 이미 종료되었거나 최신 문제가 아닙니다', 'info');
+        return;
+    }
+
+    const quizAnswers = getQuizAnswers(quizId);
 
     const answerData = {
         roomId: state.roomId,
         userId: state.socket.id,
         userName: state.userName,
         answer: answer,
-        quizId: state.currentQuiz.quizId  // ✅ quizId 포함
+        quizId: quizId  // ✅ quizId 포함
     };
 
     // 백엔드로 응답 전송
@@ -1712,9 +1763,9 @@ function submitAnswerFromChat(answer) {
     console.log('📤 퀴즈 응답 제출 (채팅):', answerData);
 
     // ✅ 수정: 이전 응답이 있다면 이전 카운트 감소
-    const quizEntry = state.quizHistory.find(q => q.quizId === state.currentQuiz.quizId);
-    if (quizEntry && state.quizAnswers[state.socket.id]) {
-        const previousAnswer = state.quizAnswers[state.socket.id];
+    const quizEntry = state.quizHistory.find(q => q.quizId === quizId);
+    if (quizEntry && quizAnswers[state.socket.id]) {
+        const previousAnswer = quizAnswers[state.socket.id];
         if (previousAnswer === 'O') {
             quizEntry.oCount = Math.max(0, quizEntry.oCount - 1);
         } else {
@@ -1724,10 +1775,11 @@ function submitAnswerFromChat(answer) {
     }
 
     // 로컬 상태 업데이트 (처음 응답 시에만)
-    if (!state.hasAnsweredQuiz) {
-        state.hasAnsweredQuiz = true;
+    if (!hasAnsweredQuiz(quizId)) {
+        state.hasAnsweredByQuiz[quizId] = true;
     }
-    state.quizAnswers[state.socket.id] = answer;
+    quizAnswers[state.socket.id] = answer;
+    state.quizSelections[quizId] = answer;
 
     // ✅ 출제 기록의 응답 카운트 증가
     if (quizEntry) {
@@ -1737,7 +1789,7 @@ function submitAnswerFromChat(answer) {
             quizEntry.xCount += 1;
         }
         // UI 업데이트: 결과 배지 업데이트
-        const quizItem = document.querySelector(`[data-quiz-id="${state.currentQuiz.quizId}"]`);
+        const quizItem = document.querySelector(`[data-quiz-id="${quizId}"]`);
         if (quizItem) {
             const badge = quizItem.querySelector('.result-badge');
             if (badge) {
@@ -1747,19 +1799,29 @@ function submitAnswerFromChat(answer) {
         console.log(`✅ 퀴즈 응답 카운트 업데이트: O=${quizEntry.oCount}, X=${quizEntry.xCount}`);
     }
 
-    // UI: 선택된 버튼만 강조 표시 (비활성화 제거)
-    const chatQuizBtns = document.querySelectorAll('.chat-quiz-btn');
-    chatQuizBtns.forEach(btn => {
-        btn.disabled = false;  // ✅ 버튼 활성화 유지
-        btn.style.opacity = '1';  // ✅ 투명도 제거
-        if (btn.classList.contains(answer === 'O' ? 'o-btn' : 'x-btn')) {
-            btn.classList.add('selected');
-        } else {
-            btn.classList.remove('selected');
-        }
-    });
+    if (triggerElement) {
+        triggerElement.blur();
+    }
+
+    syncQuizSelectionUI(quizId);
 
     showNotification(`${answer}를 선택했습니다 ✅`, 'success');
+}
+
+function syncQuizSelectionUI(quizId) {
+    const selectedAnswer = state.quizSelections[quizId];
+    const quizCard = document.querySelector(`.chat-quiz-card[data-quiz-id="${quizId}"]`);
+    if (!quizCard) {
+        return;
+    }
+
+    const buttons = quizCard.querySelectorAll('.chat-quiz-btn');
+    buttons.forEach(button => {
+        const isSelected = button.dataset.answer === selectedAnswer;
+        button.classList.toggle('selected', isSelected);
+        button.classList.toggle('not-selected', Boolean(selectedAnswer) && !isSelected);
+        button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
 }
 
 function showQuizResults() {
@@ -1768,65 +1830,87 @@ function showQuizResults() {
         return;
     }
 
+    if (!state.currentQuiz?.quizId) {
+        showNotification('결과를 조회할 퀴즈가 없습니다', 'error');
+        return;
+    }
+
     // 백엔드에 결과 조회 요청
     state.socket.emit('quiz-results-request', {
-        roomId: state.roomId
+        roomId: state.roomId,
+        quizId: state.currentQuiz.quizId
     });
 
-    console.log('📤 퀴즈 결과 요청');
+    console.log(`📤 퀴즈 결과 요청: ${state.currentQuiz.quizId}`);
 }
 
 function displayQuizResults(results) {
     console.log('📊 퀴즈 결과:', results);
-
-    document.getElementById('current-quiz-display').style.display = 'none';
-    document.getElementById('quiz-creator-section').style.display = 'block';
-    document.getElementById('quiz-results-section').style.display = 'block';
-
     const totalAnswers = results.oCount + results.xCount;
     const oPercentage = totalAnswers > 0 ? (results.oCount / totalAnswers) * 100 : 0;
     const xPercentage = totalAnswers > 0 ? (results.xCount / totalAnswers) * 100 : 0;
 
-    // 결과 표시 업데이트
-    document.getElementById('result-o-count').textContent = results.oCount;
-    document.getElementById('result-x-count').textContent = results.xCount;
-    document.getElementById('result-o-bar').style.width = oPercentage + '%';
-    document.getElementById('result-x-bar').style.width = xPercentage + '%';
+    if (results.quizId) {
+        const quizEntry = state.quizHistory.find((quiz) => quiz.quizId === results.quizId);
+        if (quizEntry) {
+            quizEntry.oCount = results.oCount;
+            quizEntry.xCount = results.xCount;
+        }
 
-    // ✅ 채팅창의 O/X 버튼 옆에 카운트 표시
-    const chatMessagesContainer = document.getElementById('chat-messages');
-    const quizButtonContainers = chatMessagesContainer.querySelectorAll('.chat-quiz-buttons');
-    if (quizButtonContainers.length > 0) {
-        // 가장 최근의 퀴즈 버튼 컨테이너 선택
-        const lastQuizButtonContainer = quizButtonContainers[quizButtonContainers.length - 1];
-        const oBtns = lastQuizButtonContainer.querySelectorAll('.o-btn');
-        const xBtns = lastQuizButtonContainer.querySelectorAll('.x-btn');
-        
-        // O 버튼 옆에 카운트 추가
-        if (oBtns.length > 0) {
-            let oCountElement = oBtns[0].nextElementSibling;
-            if (!oCountElement || !oCountElement.classList.contains('quiz-count')) {
-                oCountElement = document.createElement('span');
-                oCountElement.className = 'quiz-count o-count';
-                oBtns[0].after(oCountElement);
+        const quizItem = document.querySelector(`.quiz-history-item[data-quiz-id="${results.quizId}"]`);
+        if (quizItem) {
+            const badge = quizItem.querySelector('.result-badge');
+            if (badge) {
+                badge.textContent = results.oCount + results.xCount;
             }
-            oCountElement.textContent = `(${results.oCount}명)`;
         }
-        
-        // X 버튼 옆에 카운트 추가
-        if (xBtns.length > 0) {
-            let xCountElement = xBtns[0].nextElementSibling;
-            if (!xCountElement || !xCountElement.classList.contains('quiz-count')) {
-                xCountElement = document.createElement('span');
-                xCountElement.className = 'quiz-count x-count';
-                xBtns[0].after(xCountElement);
-            }
-            xCountElement.textContent = `(${results.xCount}명)`;
-        }
+
+        updateQuizCounts(results.quizId, results);
     }
 
-    // 채팅에 결과 메시지 추가
-    addChatMessage('시스템', '📊 퀴즈 결과', `⭕ O: ${results.oCount}명 | ❌ X: ${results.xCount}명`, Date.now(), false);
+    appendQuizResultMessage(results, { oPercentage, xPercentage, totalAnswers });
+}
+
+function updateQuizCounts(quizId, results) {
+    const quizCard = document.querySelector(`.chat-quiz-card[data-quiz-id="${quizId}"]`);
+    if (!quizCard) {
+        return;
+    }
+
+    const oCountElement = quizCard.querySelector('.o-count');
+    const xCountElement = quizCard.querySelector('.x-count');
+    if (oCountElement) {
+        oCountElement.textContent = `${results.oCount}명`;
+    }
+    if (xCountElement) {
+        xCountElement.textContent = `${results.xCount}명`;
+    }
+}
+
+function appendQuizResultMessage(results, percentages) {
+    const resultCard = document.createElement('div');
+    resultCard.className = 'chat-quiz-result-card';
+    resultCard.innerHTML = `
+        <div class="chat-quiz-result-header">📊 퀴즈 결과</div>
+        <div class="chat-quiz-result-question">${escapeHtml(results.question)}</div>
+        <div class="chat-quiz-result-row">
+            <span class="chat-quiz-result-label">⭕ O</span>
+            <div class="chat-quiz-result-bar-track">
+                <div class="chat-quiz-result-bar o-bar" style="width: ${percentages.oPercentage}%"></div>
+            </div>
+            <span class="chat-quiz-result-value">${results.oCount}명</span>
+        </div>
+        <div class="chat-quiz-result-row">
+            <span class="chat-quiz-result-label">❌ X</span>
+            <div class="chat-quiz-result-bar-track">
+                <div class="chat-quiz-result-bar x-bar" style="width: ${percentages.xPercentage}%"></div>
+            </div>
+            <span class="chat-quiz-result-value">${results.xCount}명</span>
+        </div>
+        <div class="chat-quiz-result-total">총 응답자 ${percentages.totalAnswers}명</div>
+    `;
+
+    appendChatElement(resultCard);
 }
 
 // ✅ 출제 기록에 퀴즈 추가
@@ -1878,33 +1962,35 @@ function showQuizResult(quizId) {
         return;
     }
 
+    if (state.socket && state.roomId) {
+        state.socket.emit('quiz-results-request', {
+            roomId: state.roomId,
+            quizId: quizId
+        });
+        console.log(`📤 퀴즈 결과 요청: ${quizId}`);
+        return;
+    }
+
     const { question, correctAnswer, oCount, xCount } = quizEntry;
     const total = oCount + xCount;
     const oPercentage = total > 0 ? ((oCount / total) * 100).toFixed(1) : 0;
     const xPercentage = total > 0 ? ((xCount / total) * 100).toFixed(1) : 0;
 
-    const resultMessage = `
-❓ 문제: ${question}
-정답: ${correctAnswer === 'O' ? '⭕ O' : '❌ X'}
-
-📊 응답 결과:
-⭕ O: ${oCount}명 (${oPercentage}%)
-❌ X: ${xCount}명 (${xPercentage}%)
-총 응답자: ${total}명
-    `.trim();
-
-    alert(resultMessage);
+    appendQuizResultMessage(
+        {
+            question,
+            oCount,
+            xCount
+        },
+        {
+            oPercentage,
+            xPercentage,
+            totalAnswers: total
+        }
+    );
 }
 
 function closeQuiz() {
     state.currentQuiz = null;
-    state.quizAnswers = {};
-    state.hasAnsweredQuiz = false;
     state.correctAnswer = null;
-
-    // 채팅에서 마지막 퀴즈 버튼 제거
-    const chatQuizBtns = document.querySelectorAll('.chat-quiz-buttons');
-    chatQuizBtns.forEach(btn => btn.remove());
-    
-    document.getElementById('quiz-problem-input').value = '';
 }

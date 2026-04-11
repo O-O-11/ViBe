@@ -54,6 +54,31 @@ app.use(express.json());
 const users = {};
 const rooms = {};
 
+function findQuiz(roomId, quizId) {
+  const room = rooms[roomId];
+  if (!room?.quizzes?.length) {
+    return null;
+  }
+
+  if (!quizId) {
+    return room.currentQuiz || null;
+  }
+
+  return room.quizzes.find((quiz) => quiz.id === quizId) || null;
+}
+
+function getQuizCounts(quiz) {
+  const responses = Object.values(quiz.responsesByUser || {});
+  const oCount = responses.filter((response) => response.answer === 'O').length;
+  const xCount = responses.filter((response) => response.answer === 'X').length;
+
+  return {
+    oCount,
+    xCount,
+    totalAnswers: responses.length
+  };
+}
+
 // ✅ 익명 이름 생성 함수
 function generateAnonymousName() {
   const verbs = [
@@ -447,7 +472,8 @@ io.on('connection', (socket) => {
       question: question,
       correctAnswer: correctAnswer,
       createdBy: socket.id,
-      answers: { O: [], X: [] }
+      responsesByUser: {},
+      createdAt: Date.now()
     };
     
     rooms[roomId].quizzes.push(quiz);
@@ -466,59 +492,67 @@ io.on('connection', (socket) => {
 
   // ❓ 퀴즈 응답 (quiz-answer 이벤트)
   socket.on('quiz-answer', (data) => {
-    const { roomId, answer, userId, userName } = data;
+    const { roomId, answer, userId, userName, quizId } = data;
     
     if (!rooms[roomId]) {
       console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
       return;
     }
     
-    const currentQuiz = rooms[roomId].currentQuiz;
-    if (!currentQuiz) {
-      console.log(`❌ 진행 중인 퀴즈가 없습니다: ${roomId}`);
+    const quiz = findQuiz(roomId, quizId);
+    if (!quiz) {
+      console.log(`❌ 응답할 퀴즈를 찾을 수 없습니다: ${roomId}, quizId=${quizId}`);
+      return;
+    }
+
+    if (rooms[roomId].currentQuiz?.id !== quiz.id) {
+      console.log(`⚠️ 현재 진행 중이 아닌 퀴즈 응답 무시: ${quiz.id}`);
       return;
     }
     
-    // 응답 저장
-    if (!currentQuiz.answers[answer]) {
-      currentQuiz.answers[answer] = [];
+    if (answer !== 'O' && answer !== 'X') {
+      console.log(`❌ 유효하지 않은 퀴즈 응답: ${answer}`);
+      return;
     }
-    
-    currentQuiz.answers[answer].push({
+
+    quiz.responsesByUser[userId] = {
       userId: userId,
       userName: userName,
+      answer: answer,
       timestamp: new Date().toISOString()
-    });
+    };
+
+    const { oCount, xCount, totalAnswers } = getQuizCounts(quiz);
     
-    console.log(`✅ 퀴즈 응답: ${userName} - ${answer}`);
+    console.log(`✅ 퀴즈 응답: ${userName} - ${answer} [${quiz.id}] (O=${oCount}, X=${xCount}, total=${totalAnswers})`);
   });
 
   // ❓ 퀴즈 결과 요청 (quiz-results-request 이벤트)
   socket.on('quiz-results-request', (data) => {
-    const { roomId } = data;
+    const { roomId, quizId } = data;
     
     if (!rooms[roomId]) {
       console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
       return;
     }
     
-    const currentQuiz = rooms[roomId].currentQuiz;
-    if (!currentQuiz) {
-      console.log(`❌ 진행 중인 퀴즈가 없습니다: ${roomId}`);
+    const quiz = findQuiz(roomId, quizId);
+    if (!quiz) {
+      console.log(`❌ 결과를 조회할 퀴즈를 찾을 수 없습니다: ${roomId}, quizId=${quizId}`);
       return;
     }
     
-    const oCount = currentQuiz.answers.O ? currentQuiz.answers.O.length : 0;
-    const xCount = currentQuiz.answers.X ? currentQuiz.answers.X.length : 0;
+    const { oCount, xCount, totalAnswers } = getQuizCounts(quiz);
     
-    console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}`);
+    console.log(`📊 퀴즈 결과 [${quiz.id}]: O=${oCount}, X=${xCount}`);
     
     // 강의자에게만 결과 전송
     socket.emit('quiz-results-data', {
-      question: currentQuiz.question,
+      quizId: quiz.id,
+      question: quiz.question,
       oCount: oCount,
       xCount: xCount,
-      totalAnswers: oCount + xCount
+      totalAnswers: totalAnswers
     });
   });
 
