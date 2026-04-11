@@ -1894,6 +1894,28 @@ function displayQuizResults(results) {
             }
             xCountElement.textContent = `(${results.xCount}명)`;
         }
+
+        // ✅ 사용자가 고른 답 색상 표시 (맞으면 초록색, 틀리면 빨간색)
+        const userAnswer = state.quizAnswers[state.socket.id];
+        if (userAnswer) {
+            const isCorrect = userAnswer === state.correctAnswer;
+            
+            const targetBtn = userAnswer === 'O'
+                ? lastQuizButtonContainer.querySelector('.o-btn')
+                : lastQuizButtonContainer.querySelector('.x-btn');
+            
+            if (targetBtn) {
+                if (isCorrect) {
+                    targetBtn.style.backgroundColor = '#4CAF50'; // 초록색
+                    targetBtn.style.color = 'white';
+                    console.log('✅ 정답 버튼 초록색으로 표시');
+                } else {
+                    targetBtn.style.backgroundColor = '#f44336'; // 빨간색
+                    targetBtn.style.color = 'white';
+                    console.log('❌ 오답 버튼 빨간색으로 표시');
+                }
+            }
+        }
     }
 
     // 채팅에 결과 메시지 추가
