@@ -517,6 +517,7 @@ function initializeSocket() {
     state.socket.on('quiz-answer-updated', (data) => {
         const { userId, userName, answer, oCount, xCount, totalAnswers, quizId } = data;
         console.log(`📤 퀴즈 응답 업데이트 수신: ${userName} - ${answer} (O=${oCount}, X=${xCount}, quizId=${quizId})`);
+        console.log(`🔍 현재 state.quizHistory 길이: ${state.quizHistory.length}, 내용:`, state.quizHistory.map(q => ({quizId: q.quizId, question: q.question.substring(0, 20)})));
         
         // state 업데이트
         state.quizAnswers[userId] = answer;
@@ -524,24 +525,31 @@ function initializeSocket() {
         // 출제 기록 업데이트
         if (quizId) {
             const quizEntry = state.quizHistory.find(q => q.quizId === quizId);
+            console.log(`🔍 quizId=${quizId}에 해당하는 quizEntry 찾음:`, quizEntry ? '✅ 찰금' : '❌ 없음');
+            
             if (quizEntry) {
                 quizEntry.oCount = oCount;
                 quizEntry.xCount = xCount;
+                console.log(`✅ state 업데이트: oCount=${oCount}, xCount=${xCount}`);
                 
-                // 퀴즈 탭의 결과 배지 업데이트
-                const resultBadge = document.querySelector(`[data-quiz-id="${quizId}"] .result-badge`);
+                // ✅ 수정: 더 명확한 선택자 사용 (quiz-history-item 아이템의 result-badge만 선택)
+                const resultBadge = document.querySelector(`.quiz-history-item[data-quiz-id="${quizId}"] .result-badge`);
                 if (resultBadge) {
                     resultBadge.textContent = totalAnswers;
+                    console.log(`✅ 출제 기록 배지 업데이트: ${totalAnswers}`);
+                } else {
+                    console.warn(`⚠️ selector '.quiz-history-item[data-quiz-id="${quizId}"] .result-badge'로 요소를 찾을 수 없습니다`);
+                    console.log(`🔍 현재 모든 quiz-history-item 요소:`, Array.from(document.querySelectorAll('.quiz-history-item')).map(el => ({dataQuizId: el.getAttribute('data-quiz-id'), text: el.innerText.substring(0, 30)})));
                 }
             }
         }
         
-        // ✅ 수정: 백엔드에서 받은 quizId로 컨테이너 찾기
-        const quizContainer = document.querySelector(`[data-quiz-id="${quizId}"]`);
+        // ✅ 수정: 채팅 버튼의 카운트 업데이트 (chat-quiz-buttons만 선택)
+        const chatQuizContainer = document.querySelector(`.chat-quiz-buttons[data-quiz-id="${quizId}"]`);
         
-        if (quizContainer) {
-            const countOElement = quizContainer.querySelector('.quiz-count-o');
-            const countXElement = quizContainer.querySelector('.quiz-count-x');
+        if (chatQuizContainer) {
+            const countOElement = chatQuizContainer.querySelector('.quiz-count-o');
+            const countXElement = chatQuizContainer.querySelector('.quiz-count-x');
             
             if (countOElement) {
                 countOElement.textContent = oCount;
@@ -550,9 +558,10 @@ function initializeSocket() {
                 countXElement.textContent = xCount;
             }
             
-            console.log(`✅ 퀴즈 카운트 업데이트 완료 (quizId: ${quizId}): O=${oCount}, X=${xCount}`);
+            console.log(`✅ 채팅 버튼 카운트 업데이트 완료 (quizId: ${quizId}): O=${oCount}, X=${xCount}`);
         } else {
-            console.warn(`⚠️ quizId ${quizId}에 해당하는 컨테이너를 찾을 수 없습니다`);
+            console.warn(`⚠️ selector '.chat-quiz-buttons[data-quiz-id="${quizId}"]'로 요소를 찾을 수 없습니다`);
+            console.log(`🔍 현재 모든 chat-quiz-buttons 요소:`, Array.from(document.querySelectorAll('.chat-quiz-buttons')).map(el => ({dataQuizId: el.getAttribute('data-quiz-id'), html: el.innerHTML.substring(0, 50)})));
         }
     });
 }

@@ -481,11 +481,11 @@ io.on('connection', (socket) => {
     }
     
     if (!targetQuiz) {
-      console.log(`❌ 퀴즈를 찾을 수 없습니다: ${quizId}`);
+      console.log(`❌ 퀴즈를 찾을 수 없습니다: quizId=${quizId}, 저장된 quizzes=${JSON.stringify(rooms[roomId].quizzes ? rooms[roomId].quizzes.map(q => ({id: q.id, question: q.question.substring(0, 20)})) : [])}`);
       return;
     }
     
-    console.log(`✅ 퀴즈 응답 처리 - quizId: ${quizId}, userId: ${userId}, answer: ${answer}`);
+    console.log(`✅ 퀴즈 응답 처리 - quizId: ${quizId}, userId: ${userId}, userName: ${userName}, answer: ${answer}`);
     
     // ✅ 수정: 같은 userId의 이전 응답 제거 (중복 방지)
     if (targetQuiz.answers.O) {
@@ -508,11 +508,13 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     });
     
-    console.log(`✅ 퀴즈 응답: ${userName} - ${answer}`);
+    console.log(`✅ 퀴즈 응답 저장됨: ${userName} → ${answer}`);
     
     // 모든 사용자에게 응답 업데이트 전송 (broadcast)
     const oCount = targetQuiz.answers.O ? targetQuiz.answers.O.length : 0;
     const xCount = targetQuiz.answers.X ? targetQuiz.answers.X.length : 0;
+    
+    console.log(`📊 현재 집계: O=${oCount}, X=${xCount} (quizId: ${quizId})`);
     
     io.to(roomId).emit('quiz-answer-updated', {
       userId: userId,
@@ -524,7 +526,7 @@ io.on('connection', (socket) => {
       quizId: quizId  // ✅ 수정: 요청받은 quizId 전송
     });
     
-    console.log(`📤 퀴즈 응답 브로드캐스트: ${roomId} (quizId: ${quizId}) - O=${oCount}, X=${xCount}`);
+    console.log(`📤 브로드캐스트 발송: roomId=${roomId}, quizId=${quizId}, O=${oCount}, X=${xCount}`);
   });
 
   // ❓ 퀴즈 결과 요청 (quiz-results-request 이벤트)
