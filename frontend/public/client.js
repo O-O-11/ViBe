@@ -1495,8 +1495,7 @@ function leaveConference() {
 
 // ========== 알림 ==========
 function showNotification(message, type = 'info') {
-    // ✅ 수정: 알림 활성화 (alert 사용)
-    alert(message);
+    return; // 알림 비활성화
 }
 
 // ========== 사이드바 토글 ==========
@@ -1645,13 +1644,12 @@ function createQuiz() {
     
     if (!question) {
         console.warn('⚠️ 문제를 입력하지 않음');
-        showNotification('퀴즈 문제를 입력해주세요', 'error');
         return;
     }
 
     if (!correctAnswer) {
         console.warn('⚠️ 정답을 선택하지 않음');
-        showNotification('정답을 선택해주세요', 'error');
+        alert('정답을 선택해주세요'); // ✅ 정답 검증 알림만 활성화
         return;
     }
     
