@@ -1495,7 +1495,8 @@ function leaveConference() {
 
 // ========== 알림 ==========
 function showNotification(message, type = 'info') {
-    return; // 알림 비활성화
+    // ✅ 수정: 알림 활성화 (alert 사용)
+    alert(message);
 }
 
 // ========== 사이드바 토글 ==========
