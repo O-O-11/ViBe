@@ -1944,23 +1944,25 @@ function displayQuizResults(results, quizId, correctAnswer) {
     console.log(`🎯🎯🎯 displayQuizResults 시작: quizId=${quizId}`);
     console.log(`   quizButtonContainers 개수: ${quizButtonContainers.length}`);
     
+    // 🔍 각 컨테이너의 data-quiz-id 확인
+    quizButtonContainers.forEach((container, idx) => {
+        console.log(`   [${idx}] data-quiz-id="${container.getAttribute('data-quiz-id')}"`);
+    });
+    
     if (quizButtonContainers.length > 0) {
         // ✅ 수정: quizId로 정확한 퀴즈 버튼 컨테이너 찾기
         const targetQuizContainer = document.querySelector(`.chat-quiz-buttons[data-quiz-id="${quizId}"]`);
-        const lastQuizButtonContainer = targetQuizContainer || quizButtonContainers[quizButtonContainers.length - 1];
         
-        console.log(`   targetQuizContainer (data-quiz-id="${quizId}"): ${targetQuizContainer ? '✓ 찾음' : '✗ 못 찾음'}`);
-        console.log(`   lastQuizButtonContainer: ${lastQuizButtonContainer ? '✓ 찾음' : '✗ 못 찾음'}`);
-        
-        if (!lastQuizButtonContainer) {
-            console.error('   ❌ 컨테이너 자체를 못 찾았습니다!');
+        if (!targetQuizContainer) {
+            console.error(`   ❌ quizId="${quizId}"인 컨테이너를 찾을 수 없습니다! data-quiz-id 속성이 제대로 설정되지 않았을 수 있습니다.`);
             return;
         }
         
-        console.log(`   컨테이너 HTML:`, lastQuizButtonContainer.outerHTML.substring(0, 300));
+        console.log(`   ✓ targetQuizContainer 찾음`);
+        console.log(`   컨테이너 HTML:`, targetQuizContainer.outerHTML.substring(0, 300));
         
-        const oBtns = lastQuizButtonContainer.querySelectorAll('.o-btn');
-        const xBtns = lastQuizButtonContainer.querySelectorAll('.x-btn');
+        const oBtns = targetQuizContainer.querySelectorAll('.o-btn');
+        const xBtns = targetQuizContainer.querySelectorAll('.x-btn');
 
         // ✅ 사용자가 고른 답 색상 표시 (맞으면 초록색, 틀리면 빨간색)
         console.log(`🔍 quizId=${quizId}에 해당하는 응답 찾기...`);
@@ -1977,14 +1979,14 @@ function displayQuizResults(results, quizId, correctAnswer) {
             
             // 🔍 디버깅: 선택자 테스트
             console.log('🔍🔍🔍 버튼 선택자 테스트:');
-            console.log('  - .o-btn 찾음:', lastQuizButtonContainer.querySelector('.o-btn') ? '예' : '아니오');
-            console.log('  - .chat-quiz-btn.o-btn 찾음:', lastQuizButtonContainer.querySelector('.chat-quiz-btn.o-btn') ? '예' : '아니오');
-            console.log('  - .x-btn 찾음:', lastQuizButtonContainer.querySelector('.x-btn') ? '예' : '아니오');
-            console.log('  - .chat-quiz-btn.x-btn 찾음:', lastQuizButtonContainer.querySelector('.chat-quiz-btn.x-btn') ? '예' : '아니오');
+            console.log('  - .o-btn 찾음:', targetQuizContainer.querySelector('.o-btn') ? '예' : '아니오');
+            console.log('  - .chat-quiz-btn.o-btn 찾음:', targetQuizContainer.querySelector('.chat-quiz-btn.o-btn') ? '예' : '아니오');
+            console.log('  - .x-btn 찾음:', targetQuizContainer.querySelector('.x-btn') ? '예' : '아니오');
+            console.log('  - .chat-quiz-btn.x-btn 찾음:', targetQuizContainer.querySelector('.chat-quiz-btn.x-btn') ? '예' : '아니오');
             
             const targetBtn = userAnswer === 'O'
-                ? (lastQuizButtonContainer.querySelector('.chat-quiz-btn.o-btn') || lastQuizButtonContainer.querySelector('.o-btn'))
-                : (lastQuizButtonContainer.querySelector('.chat-quiz-btn.x-btn') || lastQuizButtonContainer.querySelector('.x-btn'));
+                ? (targetQuizContainer.querySelector('.chat-quiz-btn.o-btn') || targetQuizContainer.querySelector('.o-btn'))
+                : (targetQuizContainer.querySelector('.chat-quiz-btn.x-btn') || targetQuizContainer.querySelector('.x-btn'));
             
             if (targetBtn) {
                 if (isCorrect) {
@@ -1998,7 +2000,7 @@ function displayQuizResults(results, quizId, correctAnswer) {
                 }
             } else {
                 console.warn('⚠️ targetBtn을 찾을 수 없습니다');
-                console.warn('   HTML 구조:', lastQuizButtonContainer.innerHTML);
+                console.warn('   HTML 구조:', targetQuizContainer.innerHTML);
             }
         } else {
             console.warn(`⚠️ userAnswer를 찾을 수 없습니다. state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
