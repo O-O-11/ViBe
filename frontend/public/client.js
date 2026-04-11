@@ -2062,6 +2062,13 @@ function showQuizResult(quizId) {
         showNotification('퀴즈를 찾을 수 없습니다', 'error');
         return;
     }
+    
+    // ✅ 백엔드에 결과 요청 (모든 학생들에게 데이터 broadcast)
+    state.socket.emit('quiz-results-request', {
+        roomId: state.roomId,
+        quizId: quizId  // 특정 퀴즈 결과만 요청
+    });
+    console.log(`📊 백엔드에 ${quizId} 결과 요청 emit`);
 
     const { question, correctAnswer, oCount, xCount } = quizEntry;
     const total = oCount + xCount;
