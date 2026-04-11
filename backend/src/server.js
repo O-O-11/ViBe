@@ -491,6 +491,21 @@ io.on('connection', (socket) => {
     });
     
     console.log(`✅ 퀴즈 응답: ${userName} - ${answer}`);
+    
+    // ✅ 수정: 모든 사용자에게 응답 업데이트 전송 (broadcast)
+    const oCount = currentQuiz.answers.O ? currentQuiz.answers.O.length : 0;
+    const xCount = currentQuiz.answers.X ? currentQuiz.answers.X.length : 0;
+    
+    io.to(roomId).emit('quiz-answer-updated', {
+      userId: userId,
+      userName: userName,
+      answer: answer,
+      oCount: oCount,
+      xCount: xCount,
+      totalAnswers: oCount + xCount
+    });
+    
+    console.log(`📤 퀴즈 응답 브로드캐스트: ${roomId} - O=${oCount}, X=${xCount}`);
   });
 
   // ❓ 퀴즈 결과 요청 (quiz-results-request 이벤트)

@@ -512,6 +512,40 @@ function initializeSocket() {
 
         displayQuizResults(results);
     });
+
+    // ✅ 수정: 퀴즈 응답 업데이트 (실시간 반영)
+    state.socket.on('quiz-answer-updated', (data) => {
+        const { userId, userName, answer, oCount, xCount, totalAnswers } = data;
+        console.log(`📤 퀴즈 응답 업데이트 수신: ${userName} - ${answer} (O=${oCount}, X=${xCount})`);
+        
+        // state 업데이트
+        state.quizAnswers[userId] = answer;
+        
+        // 출제 기록 업데이트
+        if (state.currentQuiz) {
+            const quizEntry = state.quizHistory.find(q => q.quizId === state.currentQuiz.quizId);
+            if (quizEntry) {
+                quizEntry.oCount = oCount;
+                quizEntry.xCount = xCount;
+                
+                // 퀴즈 탭의 결과 배지 업데이트
+                const resultBadge = document.querySelector(`[data-quiz-id="${state.currentQuiz.quizId}"] .result-badge`);
+                if (resultBadge) {
+                    resultBadge.textContent = totalAnswers;
+                }
+            }
+        }
+        
+        // 채팅 영역의 O/X 버튼 결과 업데이트
+        const chatQuizResultDiv = document.querySelector('.chat-quiz-result');
+        if (chatQuizResultDiv) {
+            chatQuizResultDiv.innerHTML = `
+                <div class="quiz-count">⭕ ${oCount} | ❌ ${xCount}</div>
+            `;
+        }
+        
+        console.log(`✅ 퀴즈 응답 UI 업데이트 완료: O=${oCount}, X=${xCount}`);
+    });
 }
 
 // ========== 회의 화면 ==========
@@ -1657,6 +1691,9 @@ function displayQuiz(question) {
     quizButtonContainer.innerHTML = `
         <button class="chat-quiz-btn o-btn" onclick="submitAnswerFromChat('O')">⭕</button>
         <button class="chat-quiz-btn x-btn" onclick="submitAnswerFromChat('X')">❌</button>
+        <div class="chat-quiz-result">
+            <div class="quiz-count">⭕ 0 | ❌ 0</div>
+        </div>
     `;
     
     chatMessages.appendChild(quizButtonContainer);
