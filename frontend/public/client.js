@@ -1898,13 +1898,24 @@ function displayQuizResults(results, quizId, correctAnswer) {
     // ✅ 채팅창의 O/X 버튼 옆에 카운트 표시
     const chatMessagesContainer = document.getElementById('chat-messages');
     const quizButtonContainers = chatMessagesContainer.querySelectorAll('.chat-quiz-buttons');
+    
+    console.log(`🎯🎯🎯 displayQuizResults 시작: quizId=${quizId}`);
+    console.log(`   quizButtonContainers 개수: ${quizButtonContainers.length}`);
+    
     if (quizButtonContainers.length > 0) {
         // ✅ 수정: quizId로 정확한 퀴즈 버튼 컨테이너 찾기
         const targetQuizContainer = document.querySelector(`.chat-quiz-buttons[data-quiz-id="${quizId}"]`);
         const lastQuizButtonContainer = targetQuizContainer || quizButtonContainers[quizButtonContainers.length - 1];
         
-        console.log('🔍 targetQuizContainer:', targetQuizContainer ? '찾음' : '못 찾음');
-        console.log('🔍 lastQuizButtonContainer:', lastQuizButtonContainer ? '찾음' : '못 찾음');
+        console.log(`   targetQuizContainer (data-quiz-id="${quizId}"): ${targetQuizContainer ? '✓ 찾음' : '✗ 못 찾음'}`);
+        console.log(`   lastQuizButtonContainer: ${lastQuizButtonContainer ? '✓ 찾음' : '✗ 못 찾음'}`);
+        
+        if (!lastQuizButtonContainer) {
+            console.error('   ❌ 컨테이너 자체를 못 찾았습니다!');
+            return;
+        }
+        
+        console.log(`   컨테이너 HTML:`, lastQuizButtonContainer.outerHTML.substring(0, 300));
         
         const oBtns = lastQuizButtonContainer.querySelectorAll('.o-btn');
         const xBtns = lastQuizButtonContainer.querySelectorAll('.x-btn');
