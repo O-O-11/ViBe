@@ -1961,28 +1961,6 @@ function displayQuizResults(results, quizId, correctAnswer) {
         
         const oBtns = lastQuizButtonContainer.querySelectorAll('.o-btn');
         const xBtns = lastQuizButtonContainer.querySelectorAll('.x-btn');
-        
-        // O 버튼 옆에 카운트 추가
-        if (oBtns.length > 0) {
-            let oCountElement = oBtns[0].nextElementSibling;
-            if (!oCountElement || !oCountElement.classList.contains('quiz-count')) {
-                oCountElement = document.createElement('span');
-                oCountElement.className = 'quiz-count o-count';
-                oBtns[0].after(oCountElement);
-            }
-            oCountElement.textContent = `(${results.oCount}명)`;
-        }
-        
-        // X 버튼 옆에 카운트 추가
-        if (xBtns.length > 0) {
-            let xCountElement = xBtns[0].nextElementSibling;
-            if (!xCountElement || !xCountElement.classList.contains('quiz-count')) {
-                xCountElement = document.createElement('span');
-                xCountElement.className = 'quiz-count x-count';
-                xBtns[0].after(xCountElement);
-            }
-            xCountElement.textContent = `(${results.xCount}명)`;
-        }
 
         // ✅ 사용자가 고른 답 색상 표시 (맞으면 초록색, 틀리면 빨간색)
         console.log(`🔍 quizId=${quizId}에 해당하는 응답 찾기...`);
@@ -2029,9 +2007,6 @@ function displayQuizResults(results, quizId, correctAnswer) {
             console.warn(`   - 응답 개수: ${state.quizAnswers[quizId] ? Object.keys(state.quizAnswers[quizId]).length : 0}`);
         }
     }
-
-    // 채팅에 결과 메시지 추가
-    addChatMessage('시스템', '📊 퀴즈 결과', `⭕ O: ${results.oCount}명 | ❌ X: ${results.xCount}명`, Date.now(), false);
 }
 
 // ✅ 출제 기록에 퀴즈 추가
