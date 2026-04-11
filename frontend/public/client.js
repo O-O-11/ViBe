@@ -1948,11 +1948,11 @@ function showQuizResult(quizId) {
 
     const resultMessage = `
 ❓ 문제: ${question}
-정답: ${correctAnswer === 'O' ? '⭕' : '❌'}
+정답: ${correctAnswer === 'O' ? 'O' : 'X'}
 
 📊 응답 결과:
-⭕: ${oCount}명 (${oPercentage}%)
-❌: ${xCount}명 (${xPercentage}%)
+O: ${oCount}명 (${oPercentage}%)
+X: ${xCount}명 (${xPercentage}%)
 총 응답자: ${total}명
     `.trim();
 

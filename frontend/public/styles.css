@@ -1282,13 +1282,17 @@ body {
     color: #667eea;
     border: 1px solid rgba(102, 126, 234, 0.5);
     border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 12px 18px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.3s ease;
     position: relative;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .quiz-result-btn:hover {
