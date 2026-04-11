@@ -979,6 +979,7 @@ body {
 
 .quiz-form .form-group {
     margin-bottom: 16px;
+    flex-direction: column;
 }
 
 .quiz-form label {
