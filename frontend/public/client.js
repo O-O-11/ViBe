@@ -553,9 +553,6 @@ function initializeSocket() {
             console.log(`✅ 퀴즈 카운트 업데이트 완료 (quizId: ${state.currentQuiz.quizId}): O=${oCount}, X=${xCount}`);
         }
     });
-        
-        console.log(`✅ 퀴즈 응답 UI 업데이트 완료: O=${oCount}, X=${xCount}`);
-    });
 }
 
 // ========== 회의 화면 ==========
