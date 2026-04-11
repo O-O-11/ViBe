@@ -1164,24 +1164,24 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     font-weight: 600;
-    min-height: 80px;
+    min-height: 100px;
 }
 
 .chat-quiz-btn .btn-icon {
-    font-size: 32px;
+    font-size: 40px;
     display: block;
 }
 
 .chat-quiz-btn .btn-text {
-    font-size: 12px;
+    font-size: 16px;
     color: #a0aec0;
 }
 
 .chat-quiz-btn .quiz-count-o,
 .chat-quiz-btn .quiz-count-x {
-    font-size: 16px;
+    font-size: 20px;
     color: #667eea;
     font-weight: 700;
     margin-top: 4px;
