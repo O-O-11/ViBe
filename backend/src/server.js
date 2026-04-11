@@ -547,11 +547,13 @@ io.on('connection', (socket) => {
     const oCount = currentQuiz.answers.O ? currentQuiz.answers.O.length : 0;
     const xCount = currentQuiz.answers.X ? currentQuiz.answers.X.length : 0;
     
-    console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}`);
+    console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, 정답=${currentQuiz.correctAnswer}`);
     
     // 강의자에게만 결과 전송
     socket.emit('quiz-results-data', {
+      quizId: currentQuiz.id,
       question: currentQuiz.question,
+      correctAnswer: currentQuiz.correctAnswer,
       oCount: oCount,
       xCount: xCount,
       totalAnswers: oCount + xCount

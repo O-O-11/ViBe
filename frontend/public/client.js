@@ -500,18 +500,19 @@ function initializeSocket() {
 
     // 퀴즈 결과
     state.socket.on('quiz-results-data', (data) => {
-        const { quizId, question, oCount, xCount, totalAnswers, answers } = data;
-        console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, quizId=${quizId}`);
+        const { quizId, question, correctAnswer, oCount, xCount, totalAnswers, answers } = data;
+        console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, quizId=${quizId}, 정답=${correctAnswer}`);
         
         const results = {
             quizId: quizId,
             question: question,
+            correctAnswer: correctAnswer,
             oCount: oCount,
             xCount: xCount,
             totalAnswers: totalAnswers
         };
 
-        displayQuizResults(results, quizId);
+        displayQuizResults(results, quizId, correctAnswer);
     });
 
     // ✅ 수정: 퀴즈 응답 업데이트 (실시간 반영)
@@ -1861,8 +1862,8 @@ function showQuizResults() {
     console.log('📤 퀴즈 결과 요청');
 }
 
-function displayQuizResults(results, quizId) {
-    console.log('📊 퀴즈 결과:', results, 'quizId:', quizId);
+function displayQuizResults(results, quizId, correctAnswer) {
+    console.log('📊 퀴즈 결과:', results, 'quizId:', quizId, '정답:', correctAnswer);
 
     document.getElementById('current-quiz-display').style.display = 'none';
     document.getElementById('quiz-creator-section').style.display = 'block';
@@ -1912,11 +1913,12 @@ function displayQuizResults(results, quizId) {
 
         // ✅ 사용자가 고른 답 색상 표시 (맞으면 초록색, 틀리면 빨간색)
         const userAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
+        console.log(`🔍 quizId=${quizId}, userAnswer=${userAnswer}, correctAnswer=${correctAnswer}`);
+        
         if (userAnswer) {
-            // ✅ 수정: quizHistory에서 해당 퀴즈의 정답 찾기
-            const quizEntry = state.quizHistory.find(q => q.quizId === quizId);
-            const correctAnswer = quizEntry ? quizEntry.correctAnswer : state.correctAnswer;
+            // ✅ 수정: 백엔드에서 받은 정답 직접 사용 (학생도 정답을 알 수 있음)
             const isCorrect = userAnswer === correctAnswer;
+            console.log(`📊 비교: userAnswer(${userAnswer}) === correctAnswer(${correctAnswer}) ? ${isCorrect}`);
             
             const targetBtn = userAnswer === 'O'
                 ? lastQuizButtonContainer.querySelector('.o-btn')
@@ -1932,7 +1934,11 @@ function displayQuizResults(results, quizId) {
                     targetBtn.style.color = 'white';
                     console.log('❌ 오답 버튼 빨간색으로 표시');
                 }
+            } else {
+                console.warn('⚠️ targetBtn을 찾을 수 없습니다');
             }
+        } else {
+            console.warn(`⚠️ userAnswer를 찾을 수 없습니다. state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
         }
     }
 
