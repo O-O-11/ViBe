@@ -971,9 +971,9 @@ body {
 }
 
 .quiz-form h3 {
-    font-size: 18px;
+    font-size: 24px;
     font-weight: 700;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     color: #667eea;
 }
 
@@ -983,22 +983,23 @@ body {
 
 .quiz-form label {
     display: block;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     color: #aaa;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .quiz-form textarea {
     width: 100%;
-    padding: 12px;
+    padding: 15px;
     background: rgba(0, 0, 0, 0.3);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px;
     resize: vertical;
+    min-height: 100px;
 }
 
 .quiz-form textarea:focus {
@@ -1015,16 +1016,16 @@ body {
 .radio-label {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
 }
 
 .radio-label input[type="radio"] {
     cursor: pointer;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     accent-color: #667eea;
 }
 
@@ -1035,12 +1036,12 @@ body {
 
 #submit-quiz-btn {
     flex: 1;
-    padding: 12px;
+    padding: 16px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
     border-radius: 6px;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s;
