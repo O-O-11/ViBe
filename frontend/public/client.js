@@ -515,29 +515,29 @@ function initializeSocket() {
 
     // ✅ 수정: 퀴즈 응답 업데이트 (실시간 반영)
     state.socket.on('quiz-answer-updated', (data) => {
-        const { userId, userName, answer, oCount, xCount, totalAnswers } = data;
-        console.log(`📤 퀴즈 응답 업데이트 수신: ${userName} - ${answer} (O=${oCount}, X=${xCount})`);
+        const { userId, userName, answer, oCount, xCount, totalAnswers, quizId } = data;
+        console.log(`📤 퀴즈 응답 업데이트 수신: ${userName} - ${answer} (O=${oCount}, X=${xCount}, quizId=${quizId})`);
         
         // state 업데이트
         state.quizAnswers[userId] = answer;
         
         // 출제 기록 업데이트
-        if (state.currentQuiz) {
-            const quizEntry = state.quizHistory.find(q => q.quizId === state.currentQuiz.quizId);
+        if (quizId) {
+            const quizEntry = state.quizHistory.find(q => q.quizId === quizId);
             if (quizEntry) {
                 quizEntry.oCount = oCount;
                 quizEntry.xCount = xCount;
                 
                 // 퀴즈 탭의 결과 배지 업데이트
-                const resultBadge = document.querySelector(`[data-quiz-id="${state.currentQuiz.quizId}"] .result-badge`);
+                const resultBadge = document.querySelector(`[data-quiz-id="${quizId}"] .result-badge`);
                 if (resultBadge) {
                     resultBadge.textContent = totalAnswers;
                 }
             }
         }
         
-        // ✅ 수정: 현재 퀴즈의 버튼 컨테이너에서 카운트 업데이트
-        const quizContainer = document.querySelector(`[data-quiz-id="${state.currentQuiz.quizId}"]`);
+        // ✅ 수정: 백엔드에서 받은 quizId로 컨테이너 찾기
+        const quizContainer = document.querySelector(`[data-quiz-id="${quizId}"]`);
         
         if (quizContainer) {
             const countOElement = quizContainer.querySelector('.quiz-count-o');
@@ -550,7 +550,9 @@ function initializeSocket() {
                 countXElement.textContent = xCount;
             }
             
-            console.log(`✅ 퀴즈 카운트 업데이트 완료 (quizId: ${state.currentQuiz.quizId}): O=${oCount}, X=${xCount}`);
+            console.log(`✅ 퀴즈 카운트 업데이트 완료 (quizId: ${quizId}): O=${oCount}, X=${xCount}`);
+        } else {
+            console.warn(`⚠️ quizId ${quizId}에 해당하는 컨테이너를 찾을 수 없습니다`);
         }
     });
 }
@@ -1701,18 +1703,29 @@ function displayQuiz(question) {
     quizButtonContainer.setAttribute('data-quiz-id', state.currentQuiz.quizId);
     quizButtonContainer.innerHTML = `
         <div class="quiz-btn-row">
-            <button class="chat-quiz-btn o-btn" onclick="submitAnswerFromChat('O')">
+            <button class="chat-quiz-btn o-btn" data-answer="O">
                 <span class="btn-icon">⭕</span>
                 <span class="btn-text">O를 누른 사람수</span>
                 <span class="quiz-count-o">0</span>
             </button>
-            <button class="chat-quiz-btn x-btn" onclick="submitAnswerFromChat('X')">
+            <button class="chat-quiz-btn x-btn" data-answer="X">
                 <span class="btn-icon">❌</span>
                 <span class="btn-text">X를 누른 사람수</span>
                 <span class="quiz-count-x">0</span>
             </button>
         </div>
     `;
+    
+    // ✅ 수정: 이벤트 리스너 추가 (각 버튼 독립적 처리)
+    const buttons = quizButtonContainer.querySelectorAll('.chat-quiz-btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const answer = btn.getAttribute('data-answer');
+            const quizId = quizButtonContainer.getAttribute('data-quiz-id');
+            submitAnswerFromChat(answer, quizId);
+        });
+    });
     
     chatMessages.appendChild(quizButtonContainer);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -1748,13 +1761,13 @@ function submitAnswer(answer) {
 }
 
 // 채팅에서의 응답 처리
-function submitAnswerFromChat(answer) {
-    if (!state.currentQuiz) {
-        showNotification('진행 중인 퀴즈가 없습니다', 'error');
+function submitAnswerFromChat(answer, quizId) {
+    // ✅ 수정: 매개변수에서 받은 quizId 사용
+    if (!quizId) {
+        showNotification('퀴즈 ID를 찾을 수 없습니다', 'error');
         return;
     }
 
-    // ✅ 수정: 같은 퀴즈에 대해 이미 응답했는지 확인
     const previousAnswer = state.quizAnswers[state.socket.id];
     
     const answerData = {
@@ -1762,8 +1775,8 @@ function submitAnswerFromChat(answer) {
         userId: state.socket.id,
         userName: state.userName,
         answer: answer,
-        quizId: state.currentQuiz.quizId,
-        previousAnswer: previousAnswer || null  // ✅ 백엔드에 이전 응답 전달
+        quizId: quizId,
+        previousAnswer: previousAnswer || null
     };
 
     // 백엔드로 응답 전송
@@ -1774,8 +1787,8 @@ function submitAnswerFromChat(answer) {
     state.quizAnswers[state.socket.id] = answer;
     state.hasAnsweredQuiz = true;
     
-    // ✅ 수정: 현재 퀴즈의 버튼 컨테이너 찾기
-    const quizContainer = document.querySelector(`[data-quiz-id="${state.currentQuiz.quizId}"]`);
+    // ✅ 수정: 매개변수 받은 quizId로 해당 컨테이너 찾기
+    const quizContainer = document.querySelector(`[data-quiz-id="${quizId}"]`);
     
     if (quizContainer) {
         // 현재 퀴즈 컨테이너 내의 모든 버튼에서 selected 제거
@@ -1792,6 +1805,10 @@ function submitAnswerFromChat(answer) {
         if (selectedBtn) {
             selectedBtn.classList.add('selected');
         }
+        
+        console.log(`✅ 퀴즈 ${quizId} 응답 선택: ${answer}`);
+    } else {
+        console.warn(`⚠️ quizId ${quizId}에 해당하는 컨테이너를 찾을 수 없습니다`);
     }
 
     console.log(`✅ 퀴즈 응답 선택: ${answer}, 이전 응답: ${previousAnswer || 'None'}`);

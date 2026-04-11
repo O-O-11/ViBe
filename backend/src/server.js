@@ -466,7 +466,7 @@ io.on('connection', (socket) => {
 
   // ❓ 퀴즈 응답 (quiz-answer 이벤트)
   socket.on('quiz-answer', (data) => {
-    const { roomId, answer, userId, userName } = data;
+    const { roomId, answer, userId, userName, quizId } = data;
     
     if (!rooms[roomId]) {
       console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
@@ -476,6 +476,12 @@ io.on('connection', (socket) => {
     const currentQuiz = rooms[roomId].currentQuiz;
     if (!currentQuiz) {
       console.log(`❌ 진행 중인 퀴즈가 없습니다: ${roomId}`);
+      return;
+    }
+    
+    // ✅ 수정: quizId 검증 (올바른 퀴즈인지 확인)
+    if (quizId && currentQuiz.quizId !== quizId) {
+      console.log(`⚠️ quizId 불일치: 요청=${quizId}, 진행중=${currentQuiz.quizId}`);
       return;
     }
     
@@ -512,7 +518,8 @@ io.on('connection', (socket) => {
       answer: answer,
       oCount: oCount,
       xCount: xCount,
-      totalAnswers: oCount + xCount
+      totalAnswers: oCount + xCount,
+      quizId: currentQuiz.quizId  // ✅ 수정: quizId 포함
     });
     
     console.log(`📤 퀴즈 응답 브로드캐스트: ${roomId} - O=${oCount}, X=${xCount}`);
