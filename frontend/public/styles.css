@@ -987,6 +987,8 @@ body {
     font-weight: 600;
     color: #aaa;
     margin-bottom: 10px;
+    writing-mode: horizontal-tb;
+    unicode-bidi: bidi-override;
 }
 
 .quiz-form textarea {
