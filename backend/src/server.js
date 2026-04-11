@@ -473,34 +473,36 @@ io.on('connection', (socket) => {
       return;
     }
     
-    const currentQuiz = rooms[roomId].currentQuiz;
-    if (!currentQuiz) {
-      console.log(`❌ 진행 중인 퀴즈가 없습니다: ${roomId}`);
+    // ✅ 수정: quizId로 특정 퀴즈 찾기 (currentQuiz만 사용하지 않기)
+    let targetQuiz = null;
+    
+    if (quizId && rooms[roomId].quizzes) {
+      targetQuiz = rooms[roomId].quizzes.find(q => q.id === quizId);
+    }
+    
+    if (!targetQuiz) {
+      console.log(`❌ 퀴즈를 찾을 수 없습니다: ${quizId}`);
       return;
     }
     
-    // ✅ 수정: quizId 검증 (올바른 퀴즈인지 확인)
-    if (quizId && currentQuiz.quizId !== quizId) {
-      console.log(`⚠️ quizId 불일치: 요청=${quizId}, 진행중=${currentQuiz.quizId}`);
-      return;
-    }
+    console.log(`✅ 퀴즈 응답 처리 - quizId: ${quizId}, userId: ${userId}, answer: ${answer}`);
     
     // ✅ 수정: 같은 userId의 이전 응답 제거 (중복 방지)
-    if (currentQuiz.answers.O) {
-      currentQuiz.answers.O = currentQuiz.answers.O.filter(r => r.userId !== userId);
+    if (targetQuiz.answers.O) {
+      targetQuiz.answers.O = targetQuiz.answers.O.filter(r => r.userId !== userId);
     }
-    if (currentQuiz.answers.X) {
-      currentQuiz.answers.X = currentQuiz.answers.X.filter(r => r.userId !== userId);
+    if (targetQuiz.answers.X) {
+      targetQuiz.answers.X = targetQuiz.answers.X.filter(r => r.userId !== userId);
     }
     
     console.log(`🔄 이전 응답 제거: ${userName} (userId: ${userId})`);
     
     // 새로운 응답 저장
-    if (!currentQuiz.answers[answer]) {
-      currentQuiz.answers[answer] = [];
+    if (!targetQuiz.answers[answer]) {
+      targetQuiz.answers[answer] = [];
     }
     
-    currentQuiz.answers[answer].push({
+    targetQuiz.answers[answer].push({
       userId: userId,
       userName: userName,
       timestamp: new Date().toISOString()
@@ -509,8 +511,8 @@ io.on('connection', (socket) => {
     console.log(`✅ 퀴즈 응답: ${userName} - ${answer}`);
     
     // 모든 사용자에게 응답 업데이트 전송 (broadcast)
-    const oCount = currentQuiz.answers.O ? currentQuiz.answers.O.length : 0;
-    const xCount = currentQuiz.answers.X ? currentQuiz.answers.X.length : 0;
+    const oCount = targetQuiz.answers.O ? targetQuiz.answers.O.length : 0;
+    const xCount = targetQuiz.answers.X ? targetQuiz.answers.X.length : 0;
     
     io.to(roomId).emit('quiz-answer-updated', {
       userId: userId,
@@ -519,10 +521,10 @@ io.on('connection', (socket) => {
       oCount: oCount,
       xCount: xCount,
       totalAnswers: oCount + xCount,
-      quizId: currentQuiz.quizId  // ✅ 수정: quizId 포함
+      quizId: quizId  // ✅ 수정: 요청받은 quizId 전송
     });
     
-    console.log(`📤 퀴즈 응답 브로드캐스트: ${roomId} - O=${oCount}, X=${xCount}`);
+    console.log(`📤 퀴즈 응답 브로드캐스트: ${roomId} (quizId: ${quizId}) - O=${oCount}, X=${xCount}`);
   });
 
   // ❓ 퀴즈 결과 요청 (quiz-results-request 이벤트)
