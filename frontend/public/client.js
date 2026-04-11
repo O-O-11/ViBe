@@ -1911,21 +1911,33 @@ function displayQuizResults(results, quizId, correctAnswer) {
     console.log('🔍 현재 state.quizAnswers 전체:', state.quizAnswers);
     console.log('🔍 현재 사용자 ID:', state.socket.id);
 
-    document.getElementById('current-quiz-display').style.display = 'none';
-    document.getElementById('quiz-creator-section').style.display = 'block';
-    document.getElementById('quiz-results-section').style.display = 'block';
+    // ✅ 강의자만 강의자 패널 업데이트 (학생은 이 요소들이 없음)
+    if (state.isInstructor) {
+        const currentQuizDisplay = document.getElementById('current-quiz-display');
+        const quizCreatorSection = document.getElementById('quiz-creator-section');
+        const quizResultsSection = document.getElementById('quiz-results-section');
+        
+        if (currentQuizDisplay) currentQuizDisplay.style.display = 'none';
+        if (quizCreatorSection) quizCreatorSection.style.display = 'block';
+        if (quizResultsSection) quizResultsSection.style.display = 'block';
 
-    const totalAnswers = results.oCount + results.xCount;
-    const oPercentage = totalAnswers > 0 ? (results.oCount / totalAnswers) * 100 : 0;
-    const xPercentage = totalAnswers > 0 ? (results.xCount / totalAnswers) * 100 : 0;
+        const totalAnswers = results.oCount + results.xCount;
+        const oPercentage = totalAnswers > 0 ? (results.oCount / totalAnswers) * 100 : 0;
+        const xPercentage = totalAnswers > 0 ? (results.xCount / totalAnswers) * 100 : 0;
 
-    // 결과 표시 업데이트
-    document.getElementById('result-o-count').textContent = results.oCount;
-    document.getElementById('result-x-count').textContent = results.xCount;
-    document.getElementById('result-o-bar').style.width = oPercentage + '%';
-    document.getElementById('result-x-bar').style.width = xPercentage + '%';
+        // 결과 표시 업데이트
+        const resultOCount = document.getElementById('result-o-count');
+        const resultXCount = document.getElementById('result-x-count');
+        const resultOBar = document.getElementById('result-o-bar');
+        const resultXBar = document.getElementById('result-x-bar');
+        
+        if (resultOCount) resultOCount.textContent = results.oCount;
+        if (resultXCount) resultXCount.textContent = results.xCount;
+        if (resultOBar) resultOBar.style.width = oPercentage + '%';
+        if (resultXBar) resultXBar.style.width = xPercentage + '%';
+    }
 
-    // ✅ 채팅창의 O/X 버튼 옆에 카운트 표시
+    // ✅ 모든 사용자(강의자 + 학생): 채팅창의 O/X 버튼 색칠
     const chatMessagesContainer = document.getElementById('chat-messages');
     const quizButtonContainers = chatMessagesContainer.querySelectorAll('.chat-quiz-buttons');
     
