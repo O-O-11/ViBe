@@ -1742,9 +1742,7 @@ function displayQuiz(question) {
     // ✅ 수정: 고유한 quiz ID를 가진 data 속성 추가
     quizButtonContainer.className = 'chat-quiz-buttons';
     quizButtonContainer.setAttribute('data-quiz-id', state.currentQuiz.quizId);
-    
-    // ✅ 강의자와 학생이 다른 UI를 봐야 함
-    let quizHTML = `
+    quizButtonContainer.innerHTML = `
         <div class="quiz-btn-row">
             <button class="chat-quiz-btn o-btn" data-answer="O">
                 <span class="btn-icon">⭕</span>
@@ -1756,26 +1754,11 @@ function displayQuiz(question) {
                 <span class="btn-text">X를 누른 사람수</span>
                 <span class="quiz-count-x">0</span>
             </button>
-    `;
-    
-    // ✅ 강의자에게는 결과보기 버튼 추가
-    if (state.isInstructor) {
-        quizHTML += `
-            <button id="show-quiz-results-btn" class="chat-quiz-btn result-btn" style="background-color: #2196F3; color: white; margin-left: 10px;">
-                <span class="btn-icon">📊</span>
-                <span class="btn-text">결과보기</span>
-            </button>
-        `;
-    }
-    
-    quizHTML += `
         </div>
     `;
     
-    quizButtonContainer.innerHTML = quizHTML;
-    
     // ✅ 수정: 이벤트 리스너 추가 (각 버튼 독립적 처리)
-    const buttons = quizButtonContainer.querySelectorAll('.chat-quiz-btn:not(#show-quiz-results-btn)');
+    const buttons = quizButtonContainer.querySelectorAll('.chat-quiz-btn');
     buttons.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -1784,19 +1767,6 @@ function displayQuiz(question) {
             submitAnswerFromChat(answer, quizId);
         });
     });
-    
-    // ✅ 강의자용 결과보기 버튼 이벤트
-    if (state.isInstructor) {
-        const showResultsBtn = quizButtonContainer.querySelector('#show-quiz-results-btn');
-        if (showResultsBtn) {
-            showResultsBtn.addEventListener('click', () => {
-                console.log('📊 강의자가 결과보기 버튼 클릭');
-                state.socket.emit('quiz-results-request', {
-                    roomId: state.roomId
-                });
-            });
-        }
-    }
     
     chatMessages.appendChild(quizButtonContainer);
     chatMessages.scrollTop = chatMessages.scrollHeight;
