@@ -33,7 +33,7 @@ const state = {
     userNames: {},   // ✅ 사용자 ID → 사용자명 매핑 (이름 변경 추적용)
     // ✅ 퀴즈 관련 데이터
     currentQuiz: null,       // {question: string, correctAnswer: 'O' or 'X', timestamp: number}
-    quizAnswers: {},         // {userId: 'O' or 'X'}
+    quizAnswers: {},         // {quizId: {userId: 'O' or 'X'}} - 퀴즈별 응답 추적
     hasAnsweredQuiz: false,  // 현재 퀴즈에 대한 본인의 응답 여부
     correctAnswer: null,     // 현재 퀴즈의 정답 (강의자가 설정)
     quizHistory: []          // ✅ 출제된 퀴즈 기록 배열
@@ -500,17 +500,18 @@ function initializeSocket() {
 
     // 퀴즈 결과
     state.socket.on('quiz-results-data', (data) => {
-        const { question, oCount, xCount, totalAnswers, answers } = data;
-        console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}`);
+        const { quizId, question, oCount, xCount, totalAnswers, answers } = data;
+        console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, quizId=${quizId}`);
         
         const results = {
+            quizId: quizId,
             question: question,
             oCount: oCount,
             xCount: xCount,
             totalAnswers: totalAnswers
         };
 
-        displayQuizResults(results);
+        displayQuizResults(results, quizId);
     });
 
     // ✅ 수정: 퀴즈 응답 업데이트 (실시간 반영)
@@ -519,8 +520,11 @@ function initializeSocket() {
         console.log(`📤 퀴즈 응답 업데이트 수신: ${userName} - ${answer} (O=${oCount}, X=${xCount}, quizId=${quizId})`);
         console.log(`🔍 현재 state.quizHistory 길이: ${state.quizHistory.length}, 내용:`, state.quizHistory.map(q => ({quizId: q.quizId, question: q.question.substring(0, 20)})));
         
-        // state 업데이트
-        state.quizAnswers[userId] = answer;
+        // state 업데이트 (퀴즈별 사용자 응답 저장)
+        if (!state.quizAnswers[quizId]) {
+            state.quizAnswers[quizId] = {};
+        }
+        state.quizAnswers[quizId][userId] = answer;
         
         // 출제 기록 업데이트
         if (quizId) {
@@ -1681,7 +1685,10 @@ function createQuiz() {
         instructorId: state.socket.id
     };
     state.correctAnswer = correctAnswer;
-    state.quizAnswers = {};
+    // ✅ 수정: 새 퀴즈의 응답 객체 생성
+    if (!state.quizAnswers[quizId]) {
+        state.quizAnswers[quizId] = {};
+    }
     state.hasAnsweredQuiz = false;
 
     // ✅ 출제 기록에 추가 (응답 결과 초기화)
@@ -1772,9 +1779,13 @@ function submitAnswer(answer) {
     state.socket.emit('quiz-answer', answerData);
     console.log('📤 퀴즈 응답 제출:', answerData);
 
-    // 로컬 상태 업데이트
+    // 로컬 상태 업데이트 (퀴즈별 사용자 응답 저장)
+    const quizId = state.currentQuiz.quizId;
+    if (!state.quizAnswers[quizId]) {
+        state.quizAnswers[quizId] = {};
+    }
+    state.quizAnswers[quizId][state.socket.id] = answer;
     state.hasAnsweredQuiz = true;
-    state.quizAnswers[state.socket.id] = answer;
 
     showNotification(`${answer}를 선택했습니다`, 'success');
 }
@@ -1787,7 +1798,7 @@ function submitAnswerFromChat(answer, quizId) {
         return;
     }
 
-    const previousAnswer = state.quizAnswers[state.socket.id];
+    const previousAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
     
     const answerData = {
         roomId: state.roomId,
@@ -1802,8 +1813,11 @@ function submitAnswerFromChat(answer, quizId) {
     state.socket.emit('quiz-answer', answerData);
     console.log('📤 퀴즈 응답 제출 (채팅):', answerData);
 
-    // 로컬 상태 업데이트
-    state.quizAnswers[state.socket.id] = answer;
+    // 로컬 상태 업데이트 (퀴즈별 사용자 응답 저장)
+    if (!state.quizAnswers[quizId]) {
+        state.quizAnswers[quizId] = {};
+    }
+    state.quizAnswers[quizId][state.socket.id] = answer;
     state.hasAnsweredQuiz = true;
     
     // ✅ 수정: 매개변수 받은 quizId로 해당 컨테이너 찾기
@@ -1847,8 +1861,8 @@ function showQuizResults() {
     console.log('📤 퀴즈 결과 요청');
 }
 
-function displayQuizResults(results) {
-    console.log('📊 퀴즈 결과:', results);
+function displayQuizResults(results, quizId) {
+    console.log('📊 퀴즈 결과:', results, 'quizId:', quizId);
 
     document.getElementById('current-quiz-display').style.display = 'none';
     document.getElementById('quiz-creator-section').style.display = 'block';
@@ -1868,8 +1882,9 @@ function displayQuizResults(results) {
     const chatMessagesContainer = document.getElementById('chat-messages');
     const quizButtonContainers = chatMessagesContainer.querySelectorAll('.chat-quiz-buttons');
     if (quizButtonContainers.length > 0) {
-        // 가장 최근의 퀴즈 버튼 컨테이너 선택
-        const lastQuizButtonContainer = quizButtonContainers[quizButtonContainers.length - 1];
+        // ✅ 수정: quizId로 정확한 퀴즈 버튼 컨테이너 찾기
+        const targetQuizContainer = document.querySelector(`.chat-quiz-buttons[data-quiz-id="${quizId}"]`);
+        const lastQuizButtonContainer = targetQuizContainer || quizButtonContainers[quizButtonContainers.length - 1];
         const oBtns = lastQuizButtonContainer.querySelectorAll('.o-btn');
         const xBtns = lastQuizButtonContainer.querySelectorAll('.x-btn');
         
@@ -1896,9 +1911,12 @@ function displayQuizResults(results) {
         }
 
         // ✅ 사용자가 고른 답 색상 표시 (맞으면 초록색, 틀리면 빨간색)
-        const userAnswer = state.quizAnswers[state.socket.id];
+        const userAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
         if (userAnswer) {
-            const isCorrect = userAnswer === state.correctAnswer;
+            // ✅ 수정: quizHistory에서 해당 퀴즈의 정답 찾기
+            const quizEntry = state.quizHistory.find(q => q.quizId === quizId);
+            const correctAnswer = quizEntry ? quizEntry.correctAnswer : state.correctAnswer;
+            const isCorrect = userAnswer === correctAnswer;
             
             const targetBtn = userAnswer === 'O'
                 ? lastQuizButtonContainer.querySelector('.o-btn')
