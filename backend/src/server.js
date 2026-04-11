@@ -549,8 +549,8 @@ io.on('connection', (socket) => {
     
     console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, 정답=${currentQuiz.correctAnswer}`);
     
-    // 강의자에게만 결과 전송
-    socket.emit('quiz-results-data', {
+    // ✅ 수정: 모든 클라이언트에게 결과 전송 (강의자 + 학생 모두)
+    io.to(roomId).emit('quiz-results-data', {
       quizId: currentQuiz.id,
       question: currentQuiz.question,
       correctAnswer: currentQuiz.correctAnswer,
