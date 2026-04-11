@@ -532,13 +532,12 @@ io.on('connection', (socket) => {
   // ❓ 퀴즈 결과 요청 (quiz-results-request 이벤트)
   socket.on('quiz-results-request', (data) => {
     const { roomId } = data;
+    const quizId = data.quizId;  // ✅ Frontend에서 보낸 quizId 사용
     
     if (!rooms[roomId]) {
       console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
       return;
     }
-    const roomId = data.roomId;
-    const quizId = data.quizId;  // ✅ Frontend에서 보낸 quizId 사용
     
     // ✅ 수정: 특정 quizId의 퀴즈 찾기 (출제 기록에서)
     let targetQuiz = rooms[roomId].currentQuiz;  // 기본: 현재 퀴즈
