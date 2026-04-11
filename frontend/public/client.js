@@ -185,6 +185,8 @@ async function joinRoom(userName, roomId) {
 
 // ========== 소켓 이벤트 ==========
 function setupSocketEvents() {
+    console.log('🔵 setupSocketEvents() 함수 시작됨');
+    
     // 다른 사용자가 입장했을 때
     document.addEventListener('socket-user-joined', (e) => {
         const { userId, userName, isInstructor, totalUsers } = e.detail;
@@ -341,6 +343,13 @@ function initializeSocket() {
 
     state.socket.on('connect', () => {
         console.log('✅ 서버에 연결됨');
+        console.log('✅ setupSocketEvents 호출 전에 이벤트 리스너 등록 (보험용)');
+        
+        // ⚠️ 보험용: 여기서도 quiz-results-data 리스너 등록
+        state.socket.on('quiz-results-data', (data) => {
+            console.log('🎯🎯🎯 [connect 핸들러] quiz-results-data 이벤트 받음!', data);
+            displayQuizResults(data, data.quizId, data.correctAnswer);
+        });
     });
 
     // 다른 사용자 입장
@@ -499,7 +508,9 @@ function initializeSocket() {
     });
 
     // 퀴즈 결과
+    console.log('📋 quiz-results-data 리스너 등록 중...');
     state.socket.on('quiz-results-data', (data) => {
+        console.log('🎯🎯🎯 quiz-results-data 이벤트 도착!!!', data);
         const { quizId, question, correctAnswer, oCount, xCount, totalAnswers, answers } = data;
         console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, quizId=${quizId}, 정답=${correctAnswer}`);
         
@@ -514,6 +525,7 @@ function initializeSocket() {
 
         displayQuizResults(results, quizId, correctAnswer);
     });
+    console.log('📋 quiz-results-data 리스너 등록 완료');
 
     // ✅ 수정: 퀴즈 응답 업데이트 (실시간 반영)
     state.socket.on('quiz-answer-updated', (data) => {
@@ -569,6 +581,8 @@ function initializeSocket() {
             console.log(`🔍 현재 모든 chat-quiz-buttons 요소:`, Array.from(document.querySelectorAll('.chat-quiz-buttons')).map(el => ({dataQuizId: el.getAttribute('data-quiz-id'), html: el.innerHTML.substring(0, 50)})));
         }
     });
+    
+    console.log('✅ setupSocketEvents() 함수 모든 리스너 등록 완료!');
 }
 
 // ========== 회의 화면 ==========
@@ -1930,9 +1944,16 @@ function displayQuizResults(results, quizId, correctAnswer) {
             const isCorrect = userAnswer === correctAnswer;
             console.log(`📊 비교: userAnswer(${userAnswer}) === correctAnswer(${correctAnswer}) ? ${isCorrect}`);
             
+            // 🔍 디버깅: 선택자 테스트
+            console.log('🔍🔍🔍 버튼 선택자 테스트:');
+            console.log('  - .o-btn 찾음:', lastQuizButtonContainer.querySelector('.o-btn') ? '예' : '아니오');
+            console.log('  - .chat-quiz-btn.o-btn 찾음:', lastQuizButtonContainer.querySelector('.chat-quiz-btn.o-btn') ? '예' : '아니오');
+            console.log('  - .x-btn 찾음:', lastQuizButtonContainer.querySelector('.x-btn') ? '예' : '아니오');
+            console.log('  - .chat-quiz-btn.x-btn 찾음:', lastQuizButtonContainer.querySelector('.chat-quiz-btn.x-btn') ? '예' : '아니오');
+            
             const targetBtn = userAnswer === 'O'
-                ? lastQuizButtonContainer.querySelector('.o-btn')
-                : lastQuizButtonContainer.querySelector('.x-btn');
+                ? (lastQuizButtonContainer.querySelector('.chat-quiz-btn.o-btn') || lastQuizButtonContainer.querySelector('.o-btn'))
+                : (lastQuizButtonContainer.querySelector('.chat-quiz-btn.x-btn') || lastQuizButtonContainer.querySelector('.x-btn'));
             
             if (targetBtn) {
                 if (isCorrect) {
@@ -1946,6 +1967,7 @@ function displayQuizResults(results, quizId, correctAnswer) {
                 }
             } else {
                 console.warn('⚠️ targetBtn을 찾을 수 없습니다');
+                console.warn('   HTML 구조:', lastQuizButtonContainer.innerHTML);
             }
         } else {
             console.warn(`⚠️ userAnswer를 찾을 수 없습니다. state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
