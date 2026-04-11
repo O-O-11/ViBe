@@ -1919,15 +1919,7 @@ function addQuizToHistory(quizEntry) {
         <div class="quiz-history-content">
             <div class="quiz-history-question">${quizNumber}. ${escapeHtml(question)}</div>
             <div class="quiz-history-answer">
-                정답: 
-                <label style="display: inline-flex; align-items: center; gap: 8px; margin-right: 12px; cursor: pointer;">
-                    <input type="radio" name="quiz-answer-${quizId}" value="O" ${correctAnswer === 'O' ? 'checked' : ''}>
-                    ⭕ O
-                </label>
-                <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="radio" name="quiz-answer-${quizId}" value="X" ${correctAnswer === 'X' ? 'checked' : ''}>
-                    ❌ X
-                </label>
+                정답: ${correctAnswer === 'O' ? '⭕' : '❌'}
             </div>
             <div class="quiz-history-time">${timeString}</div>
         </div>
