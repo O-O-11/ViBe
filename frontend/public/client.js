@@ -2003,6 +2003,50 @@ X: ${xCount}명 (${xPercentage}%)
     `.trim();
 
     alert(resultMessage);
+    
+    // ✅ 채팅창에서 해당 퀴즈의 버튼을 색칠
+    const quizButtonContainer = document.querySelector(`.chat-quiz-buttons[data-quiz-id="${quizId}"]`);
+    if (quizButtonContainer) {
+        const userAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
+        if (userAnswer) {
+            const isCorrect = userAnswer === correctAnswer;
+            
+            const targetBtn = userAnswer === 'O'
+                ? quizButtonContainer.querySelector('.o-btn')
+                : quizButtonContainer.querySelector('.x-btn');
+            
+            if (targetBtn) {
+                if (isCorrect) {
+                    targetBtn.style.backgroundColor = '#4CAF50'; // 초록색
+                    targetBtn.style.color = 'white';
+                    console.log('✅ 정답 버튼 초록색으로 표시 (결과 버튼)');
+                } else {
+                    targetBtn.style.backgroundColor = '#f44336'; // 빨간색
+                    targetBtn.style.color = 'white';
+                    console.log('❌ 오답 버튼 빨간색으로 표시 (결과 버튼)');
+                }
+                
+                // ✅ 버튼 비활성화
+                targetBtn.disabled = true;
+                targetBtn.style.pointerEvents = 'none';
+                targetBtn.style.cursor = 'not-allowed';
+                
+                // ✅ 다른 버튼(선택하지 않은 버튼)도 비활성화
+                const otherBtn = userAnswer === 'O'
+                    ? quizButtonContainer.querySelector('.x-btn')
+                    : quizButtonContainer.querySelector('.o-btn');
+                
+                if (otherBtn) {
+                    otherBtn.disabled = true;
+                    otherBtn.style.pointerEvents = 'none';
+                    otherBtn.style.opacity = '0.5';
+                    otherBtn.style.cursor = 'not-allowed';
+                }
+                
+                console.log(`🔒 ${quizId} 퀴즈의 버튼이 비활성화되었습니다`);
+            }
+        }
+    }
 }
 
 function closeQuiz() {
