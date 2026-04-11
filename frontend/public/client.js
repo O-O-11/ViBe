@@ -1985,6 +1985,10 @@ function showQuizResult(quizId) {
     const total = oCount + xCount;
     const oPercentage = total > 0 ? ((oCount / total) * 100).toFixed(1) : 0;
     const xPercentage = total > 0 ? ((xCount / total) * 100).toFixed(1) : 0;
+    
+    // ✅ 정답률 계산 (정답을 맞춘 사람의 비율)
+    const correctCount = correctAnswer === 'O' ? oCount : xCount;
+    const correctPercentage = total > 0 ? ((correctCount / total) * 100).toFixed(1) : 0;
 
     const resultMessage = `
 ❓ 문제: ${question}
@@ -1994,6 +1998,8 @@ function showQuizResult(quizId) {
 O: ${oCount}명 (${oPercentage}%)
 X: ${xCount}명 (${xPercentage}%)
 총 응답자: ${total}명
+
+✅ 정답률: ${correctPercentage}%
     `.trim();
 
     alert(resultMessage);
