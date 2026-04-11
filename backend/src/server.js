@@ -537,23 +537,35 @@ io.on('connection', (socket) => {
       console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
       return;
     }
+    const roomId = data.roomId;
+    const quizId = data.quizId;  // ✅ Frontend에서 보낸 quizId 사용
     
-    const currentQuiz = rooms[roomId].currentQuiz;
-    if (!currentQuiz) {
+    // ✅ 수정: 특정 quizId의 퀴즈 찾기 (출제 기록에서)
+    let targetQuiz = rooms[roomId].currentQuiz;  // 기본: 현재 퀴즈
+    
+    if (quizId && rooms[roomId].quizzes) {
+      const foundQuiz = rooms[roomId].quizzes.find(q => q.id === quizId);
+      if (foundQuiz) {
+        targetQuiz = foundQuiz;
+        console.log(`🎯 해당 quizId의 퀴즈 찾음: ${quizId}`);
+      }
+    }
+    
+    if (!targetQuiz) {
       console.log(`❌ 진행 중인 퀴즈가 없습니다: ${roomId}`);
       return;
     }
     
-    const oCount = currentQuiz.answers.O ? currentQuiz.answers.O.length : 0;
-    const xCount = currentQuiz.answers.X ? currentQuiz.answers.X.length : 0;
+    const oCount = targetQuiz.answers.O ? targetQuiz.answers.O.length : 0;
+    const xCount = targetQuiz.answers.X ? targetQuiz.answers.X.length : 0;
     
-    console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, 정답=${currentQuiz.correctAnswer}`);
+    console.log(`📊 퀴즈 결과: quizId=${targetQuiz.id}, O=${oCount}, X=${xCount}, 정답=${targetQuiz.correctAnswer}`);
     
     // ✅ 수정: 모든 클라이언트에게 결과 전송 (강의자 + 학생 모두)
     io.to(roomId).emit('quiz-results-data', {
-      quizId: currentQuiz.id,
-      question: currentQuiz.question,
-      correctAnswer: currentQuiz.correctAnswer,
+      quizId: targetQuiz.id,
+      question: targetQuiz.question,
+      correctAnswer: targetQuiz.correctAnswer,
       oCount: oCount,
       xCount: xCount,
       totalAnswers: oCount + xCount
