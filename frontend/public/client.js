@@ -1160,9 +1160,11 @@ function addChatMessage(userId, userName, message, timestamp, isInstructor = fal
         messageEl.appendChild(imageEl);
     }
 
+    // ✅ 수정: timestamp를 포맷하여 시간 표시
     const time = document.createElement('div');
     time.className = 'chat-message-time';
-    time.textContent = timestamp;
+    const timeString = new Date(timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    time.textContent = timeString;
 
     messageEl.appendChild(header);
     messageEl.appendChild(content);
