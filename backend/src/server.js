@@ -479,7 +479,17 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // 응답 저장
+    // ✅ 수정: 같은 userId의 이전 응답 제거 (중복 방지)
+    if (currentQuiz.answers.O) {
+      currentQuiz.answers.O = currentQuiz.answers.O.filter(r => r.userId !== userId);
+    }
+    if (currentQuiz.answers.X) {
+      currentQuiz.answers.X = currentQuiz.answers.X.filter(r => r.userId !== userId);
+    }
+    
+    console.log(`🔄 이전 응답 제거: ${userName} (userId: ${userId})`);
+    
+    // 새로운 응답 저장
     if (!currentQuiz.answers[answer]) {
       currentQuiz.answers[answer] = [];
     }
@@ -492,7 +502,7 @@ io.on('connection', (socket) => {
     
     console.log(`✅ 퀴즈 응답: ${userName} - ${answer}`);
     
-    // ✅ 수정: 모든 사용자에게 응답 업데이트 전송 (broadcast)
+    // 모든 사용자에게 응답 업데이트 전송 (broadcast)
     const oCount = currentQuiz.answers.O ? currentQuiz.answers.O.length : 0;
     const xCount = currentQuiz.answers.X ? currentQuiz.answers.X.length : 0;
     
