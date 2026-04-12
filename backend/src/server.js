@@ -256,21 +256,36 @@ io.on('connection', (socket) => {
   });
 
   // 방에 참여
-  socket.on('join-room', (data) => {
-    const { roomId, userName } = data;
+  socket.on('join-room', (data, callback) => {
+    const { roomId, userName, isJoining } = data;
 
-    socket.join(roomId);
+    // ✅ "참여" 버튼인 경우: 기존 방이 반드시 존재해야 함
+    if (isJoining && !rooms[roomId]) {
+      console.error(`❌ [참여 실패] 방을 찾을 수 없습니다: ${roomId}`);
+      
+      // ✅ 클라이언트에 에러 콜백 응답
+      if (callback && typeof callback === 'function') {
+        callback({
+          error: true,
+          message: `방을 찾을 수 없습니다. (방 ID: ${roomId})`
+        });
+      }
+      return;
+    }
 
+    // ✅ "강의실 생성"인 경우: 새 방 생성
     if (!rooms[roomId]) {
       rooms[roomId] = {
         id: roomId,
         users: [],
         instructorId: socket.id,
         createdAt: Date.now(),
-        attendanceChecked: false  // ✅ 익명 모드 활성화 여부
+        attendanceChecked: false
       };
       console.log(`📍 새 방 생성: ${roomId}, 강의자: ${socket.id}`);
     }
+
+    socket.join(roomId);
 
     rooms[roomId].users.push({
       id: socket.id,
@@ -295,7 +310,17 @@ io.on('connection', (socket) => {
       totalUsers: rooms[roomId].users.length
     });
 
-    // 새 사용자에게 기존 사용자 목록 전송
+    // ✅ 성공 응답 콜백
+    if (callback && typeof callback === 'function') {
+      callback({
+        error: false,
+        message: '방 입장 성공',
+        users: rooms[roomId].users.filter(u => u.id !== socket.id),
+        isUserInstructor: rooms[roomId].instructorId === socket.id
+      });
+    }
+
+    // 새 사용자에게 기존 사용자 목록 전송 (레거시 코드 호환성)
     socket.emit('existing-users', {
       users: rooms[roomId].users.filter(u => u.id !== socket.id),
       isUserInstructor: rooms[roomId].instructorId === socket.id
@@ -405,7 +430,7 @@ io.on('connection', (socket) => {
 
   // WebRTC SDP 제안 처리
   socket.on('offer', (data) => {
-    const { to, offer, from, fromName, fromIsInstructor } = data;
+    const { to, offer, from, fromName } = data;
     
     try {
       if (!to || !offer) {
@@ -413,16 +438,27 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // ✅ 서버에서 강의자 여부 직접 확인 (클라이언트 값 검증)
+      let roomId = null;
+      for (const rid in rooms) {
+        if (rooms[rid].users.find(u => u.id === from)) {
+          roomId = rid;
+          break;
+        }
+      }
+      
+      const isFromInstructor = roomId && rooms[roomId] && rooms[roomId].instructorId === from;
+
       // ✅ 다른 네트워크 사용자를 위한 상세 로깅
       console.log(`📤 Offer 전송 시작:`);
-      console.log(`   - From: ${from} (${fromName}, 강의자: ${fromIsInstructor})`);
+      console.log(`   - From: ${from} (${fromName}, 강의자: ${isFromInstructor})`);
       console.log(`   - To: ${to}`);
       console.log(`   - Offer SDP 길이: ${offer.sdp ? offer.sdp.length : 0}bytes`);
       
       io.to(to).emit('offer', {
         from: from,
         fromName: fromName,
-        fromIsInstructor: fromIsInstructor,
+        fromIsInstructor: isFromInstructor,  // ✅ 서버에서 검증한 값만 전송
         offer: offer,
         timestamp: Date.now()  // ✅ 타임스탬프 추가 (연결 지연 측정용)
       });

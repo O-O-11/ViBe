@@ -190,11 +190,12 @@ function handleJoinExistingRoom() {
         return;
     }
 
-    joinRoom(userName, roomId);
+    // ✅ 참여 버튼이므로 isJoining: true로 전달
+    joinRoom(userName, roomId, true);
 }
 
 // ========== 회의 참여 ==========
-async function joinRoom(userName, roomId) {
+async function joinRoom(userName, roomId, isJoining = false) {
     state.userName = userName;
     state.roomId = roomId;
 
@@ -303,9 +304,18 @@ async function joinRoom(userName, roomId) {
                 resolve(data);
             });
 
+            // ✅ 콜백 함수로 서버 응답 처리 (에러 검증)
             state.socket.emit('join-room', {
                 roomId: roomId,
-                userName: userName
+                userName: userName,
+                isJoining: isJoining  // ✅ 참여인지 생성인지 플래그 추가
+            }, (response) => {
+                clearTimeout(timeout);
+                
+                if (response && response.error) {
+                    // ❌ 서버에서 에러 응답
+                    reject(new Error(response.message));
+                }
             });
         });
 
