@@ -743,8 +743,14 @@ function initializeSocket() {
                 if (videoContainer) {
                     const label = videoContainer.querySelector('.video-label');
                     if (label) {
-                        label.textContent = user.name;
-                        console.log(`[익명화] 비디오 label 업데이트: ${user.id} → ${user.name}`);
+                        // ✅ 강의자 배지 유지
+                        if (user.isInstructor) {
+                            label.innerHTML = `${user.name} <span class="instructor-badge">강의자</span>`;
+                            console.log(`[익명화] 비디오 label 업데이트 (강의자 배지 유지): ${user.id} → ${user.name}`);
+                        } else {
+                            label.textContent = user.name;
+                            console.log(`[익명화] 비디오 label 업데이트: ${user.id} → ${user.name}`);
+                        }
                     }
                 }
             }
