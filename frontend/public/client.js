@@ -897,11 +897,6 @@ function initializeConferenceScreen() {
     document.getElementById('accept-suggestion-btn').addEventListener('click', acceptSuggestion);
     document.getElementById('reject-suggestion-btn').addEventListener('click', rejectSuggestion);
 
-    // 설정
-    document.getElementById('settings-btn').addEventListener('click', () => {
-        showNotification('설정 기능이 준비 중입니다', 'info');
-    });
-
     // 회의 종료
     document.getElementById('leave-btn').addEventListener('click', leaveConference);
 
@@ -2543,8 +2538,11 @@ function createQuiz() {
 }
 
 function displayQuiz(question) {
-    // 채팅창에 퀴즈 문제 표시
-    addChatMessage('시스템', '❓ 퀴즈', question, Date.now(), false);
+    // 🔢 퀴즈 번호 계산
+    const quizNumber = state.quizHistory.length;
+    
+    // 채팅창에 퀴즈 문제 표시 (퀴즈 번호와 함께)
+    addChatMessage('시스템', `❓ 퀴즈 ${quizNumber}`, question, Date.now(), false);
     
     // 채팅 메시지 영역에 O/X 버튼 추가
     const chatMessages = document.getElementById('chat-messages');
