@@ -86,6 +86,7 @@ const state = {
     remoteUsers: {},
     currentScreenShareUserId: null,
     isSidebarVisible: true,
+    isControlBarVisible: true,
     isInstructor: false,
     suggestedQuestion: null,
     userColors: {}, // ✅ 사용자별 색깔 저장
@@ -879,6 +880,18 @@ function initializeConferenceScreen() {
 
     // 사이드바 토글
     document.getElementById('toggle-sidebar-btn').addEventListener('click', toggleSidebar);
+
+    // 제어 바 토글 (클릭시 표시/숨김)
+    const controlBar = document.querySelector('.control-bar');
+    if (controlBar) {
+        controlBar.addEventListener('click', (e) => {
+            // 버튼 클릭 시에는 토글하지 않도록 (버튼 기능 우선)
+            if (e.target.closest('.control-btn') || e.target.closest('button')) {
+                return;
+            }
+            toggleControlBar();
+        });
+    }
 
     // ✅ 강의실 코드 복사
     document.getElementById('copy-room-code-btn').addEventListener('click', copyRoomCode);
@@ -2276,6 +2289,18 @@ function toggleSidebar() {
         sidebar.classList.remove('hidden');
     } else {
         sidebar.classList.add('hidden');
+    }
+}
+
+// ========== 제어 바 토글 ==========
+function toggleControlBar() {
+    const controlBar = document.querySelector('.control-bar');
+    state.isControlBarVisible = !state.isControlBarVisible;
+    
+    if (state.isControlBarVisible) {
+        controlBar.classList.remove('hidden');
+    } else {
+        controlBar.classList.add('hidden');
     }
 }
 

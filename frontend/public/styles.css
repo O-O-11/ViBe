@@ -890,6 +890,14 @@ body {
     padding: 24px 40px;
     border-radius: 50px;
     z-index: 30;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    cursor: pointer;
+}
+
+/* 제어 바 숨김 상태 */
+.control-bar.hidden {
+    opacity: 0;
+    visibility: hidden;
 }
 
 /* 알림 */
