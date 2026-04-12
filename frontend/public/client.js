@@ -93,6 +93,7 @@ const state = {
     // ✅ 퀴즈 관련 데이터
     currentQuiz: null,       // {question: string, correctAnswer: 'O' or 'X', timestamp: number}
     quizAnswers: {},         // {quizId: {userId: 'O' or 'X'}} - 퀴즈별 응답 추적
+    quizStatuses: {},        // ✅ {quizId: 'ongoing' or 'finished'} - 각 퀴즈별 독립적 상태
     hasAnsweredQuiz: false,  // 현재 퀴즈에 대한 본인의 응답 여부
     correctAnswer: null,     // 현재 퀴즈의 정답 (강의자가 설정)
     quizHistory: []          // ✅ 출제된 퀴즈 기록 배열
@@ -762,7 +763,8 @@ function initializeSocket() {
             quizId: quizId,  // ✅ quizId 포함
             question: question,
             correctAnswer: correctAnswer,
-            timestamp: timestamp || Date.now()
+            timestamp: timestamp || Date.now(),
+            status: 'ongoing'  // ✅ 상태 추가 (ongoing → finished)
         };
         state.correctAnswer = correctAnswer;
         state.quizAnswers = {};
@@ -777,6 +779,12 @@ function initializeSocket() {
         console.log('🎯🎯🎯 quiz-results-data 이벤트 도착!!!', data);
         const { quizId, question, correctAnswer, oCount, xCount, totalAnswers, answers } = data;
         console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, quizId=${quizId}, 정답=${correctAnswer}`);
+        
+        // ✅ 상태 변경: 더 이상 답변 불가
+        if (state.currentQuiz) {
+            state.currentQuiz.status = 'finished';
+            console.log('🔒 퀴즈 상태 변경: finished (답변 불가능)');
+        }
         
         const results = {
             quizId: quizId,
@@ -2582,6 +2590,12 @@ function submitAnswerFromChat(answer, quizId) {
         return;
     }
 
+    // ✅ 상태 확인: 이미 결과가 표시되면 답변 불가
+    if (state.currentQuiz && state.currentQuiz.status === 'finished') {
+        showNotification('이미 결과가 표시되어 답변을 변경할 수 없습니다', 'warning');
+        return;
+    }
+
     const previousAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
     
     const answerData = {
@@ -2703,25 +2717,12 @@ function displayQuizResults(results, quizId, correctAnswer) {
         const oBtns = targetQuizContainer.querySelectorAll('.o-btn');
         const xBtns = targetQuizContainer.querySelectorAll('.x-btn');
 
-        // ✅ 사용자가 고른 답 색상 표시 (맞으면 초록색, 틀리면 빨간색)
-        console.log(`🔍 quizId=${quizId}에 해당하는 응답 찾기...`);
-        console.log(`🔍 state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
-        
+        // ✅ 학생의 답이 있을 때만 색칠
         const userAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
-        console.log(`🔍 사용자 ${state.socket.id}의 응답: ${userAnswer}`);
-        console.log(`🔍 정답: ${correctAnswer}`);
         
         if (userAnswer) {
-            // ✅ 수정: 백엔드에서 받은 정답 직접 사용 (학생도 정답을 알 수 있음)
+            // 학생의 답과 정답 비교
             const isCorrect = userAnswer === correctAnswer;
-            console.log(`📊 비교: userAnswer(${userAnswer}) === correctAnswer(${correctAnswer}) ? ${isCorrect}`);
-            
-            // 🔍 디버깅: 선택자 테스트
-            console.log('🔍🔍🔍 버튼 선택자 테스트:');
-            console.log('  - .o-btn 찾음:', targetQuizContainer.querySelector('.o-btn') ? '예' : '아니오');
-            console.log('  - .chat-quiz-btn.o-btn 찾음:', targetQuizContainer.querySelector('.chat-quiz-btn.o-btn') ? '예' : '아니오');
-            console.log('  - .x-btn 찾음:', targetQuizContainer.querySelector('.x-btn') ? '예' : '아니오');
-            console.log('  - .chat-quiz-btn.x-btn 찾음:', targetQuizContainer.querySelector('.chat-quiz-btn.x-btn') ? '예' : '아니오');
             
             const targetBtn = userAnswer === 'O'
                 ? (targetQuizContainer.querySelector('.chat-quiz-btn.o-btn') || targetQuizContainer.querySelector('.o-btn'))
@@ -2729,24 +2730,18 @@ function displayQuizResults(results, quizId, correctAnswer) {
             
             if (targetBtn) {
                 if (isCorrect) {
+                    // 정답 → 초록색
                     targetBtn.setAttribute('style', 'background-color: rgba(76, 175, 80, 0.5) !important; color: white !important;');
-                    targetBtn.classList.remove('selected'); // 기존 선택 스타일 제거
-                    console.log('✅ 정답 버튼 초록색으로 표시');
+                    console.log('✅ 초록색');
                 } else {
+                    // 오답 → 빨간색
                     targetBtn.setAttribute('style', 'background-color: rgba(244, 67, 54, 0.5) !important; color: white !important;');
-                    targetBtn.classList.remove('selected'); // 기존 선택 스타일 제거
-                    console.log('❌ 오답 버튼 빨간색으로 표시');
+                    console.log('❌ 빨간색');
                 }
-            } else {
-                console.warn('⚠️ targetBtn을 찾을 수 없습니다');
-                console.warn('   HTML 구조:', targetQuizContainer.innerHTML);
+                targetBtn.classList.remove('selected');
             }
-        } else {
-            console.warn(`⚠️ userAnswer를 찾을 수 없습니다. state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
-            console.warn(`⚠️ 응답이 없는 이유:`);
-            console.warn(`   - state.quizAnswers[${quizId}] 존재? ${state.quizAnswers[quizId] ? '예' : '아니오'}`);
-            console.warn(`   - 응답 개수: ${state.quizAnswers[quizId] ? Object.keys(state.quizAnswers[quizId]).length : 0}`);
         }
+        // 답이 없으면 아무것도 표시 안 함
     }
 }
 
