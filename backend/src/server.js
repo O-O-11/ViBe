@@ -16,6 +16,40 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 
+// CORS 검사 함수 (로컬 내부 IP도 허용)
+function isOriginAllowed(origin) {
+  // origin이 없으면 허용 (개발 도구 실행 시)
+  if (!origin) {
+    return true;
+  }
+
+  // 화이트리스트 도메인
+  const allowedDomains = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://vibe-classroom.netlify.app',
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+
+  // 정확한 매칭
+  if (allowedDomains.includes(origin)) {
+    return true;
+  }
+
+  // 로컬 네트워크 IP 패턴 매칭 (192.168.*, 10.*, 172.16-31.*)
+  const localNetworkPattern = /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.).*:5173$/;
+  if (localNetworkPattern.test(origin)) {
+    return true;
+  }
+  
+  const localNetworkPattern2 = /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.).*:3000$/;
+  if (localNetworkPattern2.test(origin)) {
+    return true;
+  }
+
+  return false;
+}
+
 // CORS 허용 도메인 설정
 const allowedOrigins = [
   'http://localhost:5173',
@@ -27,26 +61,58 @@ const allowedOrigins = [
 const io = new socketIo(server, {
   cors: {
     origin: function(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // origin 없이 요청 (개발 도구 실행)
+      if (!origin) {
+        console.log('✅ CORS: origin 없음 (localhost 개발 도구)');
+        callback(null, true);
+        return;
+      }
+      
+      // 허용된 출처인지 확인
+      if (isOriginAllowed(origin)) {
+        console.log(`✅ CORS 통과: ${origin}`);
         callback(null, true);
       } else {
-        callback(new Error('CORS blocked'));
+        console.warn(`⚠️ CORS 차단: ${origin}`);
+        // 개발 모드: 차단하지 않음 / 프로덕션: 차단
+        if (process.env.NODE_ENV === 'development') {
+          console.log('   → 개발 모드이므로 허용합니다');
+          callback(null, true);
+        } else {
+          callback(new Error('CORS blocked: Origin not allowed'));
+        }
       }
     },
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+    allowEIO3: true  // ✅ Engine.IO v3 호환성 (구형 클라이언트 지원)
+  },
+  transports: ['websocket', 'polling']  // ✅ WebSocket 우선, 포톨백 폴링
 });
 
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // origin 없이 요청 (curl, Postman 등)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    
+    // 허용된 출처인지 확인
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('CORS blocked'));
+      console.warn(`⚠️ Express CORS 차단: ${origin}`);
+      if (process.env.NODE_ENV === 'development') {
+        callback(null, true);  // 개발 모드: 모든 요청 허용
+      } else {
+        callback(new Error('CORS blocked'));  // 프로덕션: 화이트리스트만 허용
+      }
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 

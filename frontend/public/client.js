@@ -1,16 +1,75 @@
-// WebRTC 설정
+// WebRTC 설정 (다중 STUN/TURN 서버 지원 - NAT/방화벽 돌파용)
 const RTCConfig = {
     iceServers: [
+        // Google STUN 서버 (기본)
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
+        { urls: 'stun:stun2.l.google.com:19302' },
+        // 공개 TURN 서버들 (NAT/방화벽 뚫기 위한 대체 경로)
+        {
+            urls: 'turn:numb.viagenie.ca',
+            credential: 'muazkh',
+            username: 'webrtc@example.com'
+        },
+        {
+            urls: 'turn:turn.bistri.com:80',
+            credential: 'homage',
+            username: 'homage'
+        }
     ]
 };
 
-// 백엔드 서버 URL 설정
-const BACKEND_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000' 
-    : 'https://vibe-production-6c36.up.railway.app';
+// 백엔드 서버 URL 설정 (똑똑한 자동 감지)
+function getBackendURL() {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // 1️⃣ 로컬호스트 (내 컴퓨터)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:3000';
+    }
+    
+    // 2️⃣ 같은 네트워크 내부 IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    if (hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+        return `${protocol}//${hostname}:3000`;
+    }
+    
+    // 3️⃣ 프로덕션 배포 (공개 인터넷)
+    return 'https://vibe-production-6c36.up.railway.app';
+}
+
+const BACKEND_URL = getBackendURL();
+
+// 디버그: BACKEND_URL 로깅
+console.log(`🌐 Backend URL: ${BACKEND_URL} (hostname: ${window.location.hostname})`);
+console.log(`🔒 Protocol: ${window.location.protocol}, Secure: ${window.location.protocol === 'https:' || window.location.hostname === 'localhost'}`);
+
+// ✅ 보안 정책 감지 함수
+function isSecureContext() {
+    return window.location.protocol === 'https:' || 
+           window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1';
+}
+
+// ✅ 카메라/마이크 권한 에러 핸들러
+function handleMediaError(error, context = '') {
+    console.error(`❌ 미디어 권한 오류 (${context}):`, error);
+    
+    let errorMsg = '카메라/마이크 접근 실패';
+    
+    if (error.name === 'NotAllowedError') {
+        errorMsg = '카메라/마이크 권한이 거부되었습니다. 브라우저 설정을 확인해주세요';
+    } else if (error.name === 'NotFoundError') {
+        errorMsg = '카메라/마이크가 연결되지 않았습니다';
+    } else if (error.name === 'NotSupportedError') {
+        errorMsg = '이 브라우저는 카메라/마이크를 지원하지 않습니다';
+    } else if (error.name === 'SecurityError') {
+        errorMsg = `⚠️ 보안 정책으로 인해 카메라/마이크 접근이 거부되었습니다.\n(HTTPS 또는 localhost에서 접속해주세요)\n현재: ${window.location.protocol}//${window.location.host}`;
+    }
+    
+    console.error(`📌 해결책:\n${errorMsg}`);
+    return errorMsg;
+}
 
 // 전역 변수
 const state = {
@@ -140,6 +199,12 @@ async function joinRoom(userName, roomId) {
     state.roomId = roomId;
 
     try {
+        // ✅ 보안 컨텍스트 확인
+        if (!isSecureContext()) {
+            console.warn('⚠️ 비보안 컨텍스트에서 실행 중 (로컬 IP 접속)\n' +
+                        'getUserMedia는 HTTPS 또는 localhost에서만 작동합니다');
+        }
+
         // 로컬 스트림 초기화
         const stream = await navigator.mediaDevices.getUserMedia({
             video: {
@@ -147,6 +212,10 @@ async function joinRoom(userName, roomId) {
                 height: { ideal: 720 }
             },
             audio: true
+        }).catch(error => {
+            // ✅ 권한 오류 처리
+            const errorMsg = handleMediaError(error, 'getUserMedia');
+            throw new Error(errorMsg);
         });
 
         state.localStream = stream;
@@ -166,9 +235,23 @@ async function joinRoom(userName, roomId) {
         // 로컬 이름 표시
         document.getElementById('local-username').textContent = userName;
 
+        // ✅ 원격 주소 정보 표시 (디버깅용)
+        console.log(`📍 접속 주소: ${window.location.protocol}//${window.location.host}`);
+        console.log(`📌 WebRTC 테스트 가능: ${isSecureContext() ? '✅' : '❌ (HTTPS/localhost 필요)'}`);
+
         // 소켓 연결 및 방 참여
         if (!state.socket) {
-            state.socket = io(BACKEND_URL);
+            // ✅ 다른 네트워크 연결 안정화 옵션 적용
+            state.socket = io(BACKEND_URL, {
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: 10,
+                transports: ['websocket', 'polling'],
+                upgrade: true,
+                rejectUnauthorized: false,
+                multiplex: false
+            });
         }
 
         state.socket.emit('join-room', {
@@ -178,8 +261,9 @@ async function joinRoom(userName, roomId) {
 
         showNotification(`${userName}님이 회의에 입장했습니다`, 'success');
     } catch (error) {
-        showNotification('카메라/마이크 접근 권한을 확인해주세요', 'error');
-        console.error('미디어 접근 오류:', error);
+        const errorMsg = error.message || '카메라/마이크 접근 권한을 확인해주세요';
+        showNotification(errorMsg, 'error');
+        console.error('❌ 회의 입장 오류:', error);
     }
 }
 
@@ -354,18 +438,59 @@ function setupSocketEvents() {
 // Socket.IO 이벤트 연결
 function initializeSocket() {
     if (!state.socket) {
-        state.socket = io(BACKEND_URL);
+        // ✅ 다른 네트워크에서도 안정적인 연결을 위해 재시도 설정
+        state.socket = io(BACKEND_URL, {
+            reconnection: true,           // 자동 재연결 활성화
+            reconnectionDelay: 1000,      // 첫 재시도까지 1초 대기
+            reconnectionDelayMax: 5000,   // 최대 5초 대기
+            reconnectionAttempts: 10,     // 최대 10회 재시도
+            transports: ['websocket', 'polling'],  // WebSocket 우선, 폴백 폴링
+            upgrade: true,                // 연결 우그레이드 시도
+            multiplex: false,             // ✅ 다중 탭/창 환경에서 안정성
+            rejectUnauthorized: false,    // HTTPS 자체서명 인증서도 허용 (개발 환경)
+            query: {
+                version: '1.0',           // API 버전 정보 전달
+                platform: navigator.platform
+            }
+        });
+        
+        console.log(`📡 Socket.IO 초기화 (Backend: ${BACKEND_URL})`);
     }
 
+    // 연결 성공
     state.socket.on('connect', () => {
-        console.log('✅ 서버에 연결됨');
-        console.log('✅ setupSocketEvents 호출 전에 이벤트 리스너 등록 (보험용)');
+        console.log('✅ 서버에 연결됨 (Socket ID:', state.socket.id, ')');
+        showNotification('✅ 서버 연결 성공', 'success');
         
         // ⚠️ 보험용: 여기서도 quiz-results-data 리스너 등록
         state.socket.on('quiz-results-data', (data) => {
             console.log('🎯🎯🎯 [connect 핸들러] quiz-results-data 이벤트 받음!', data);
             displayQuizResults(data, data.quizId, data.correctAnswer);
         });
+    });
+    
+    // 📌 다른 네트워크 환경에서 연결 끊김 감지
+    state.socket.on('disconnect', (reason) => {
+        console.warn(`⚠️ 서버 연결 끊김: ${reason}`);
+        if (reason === 'io server disconnect') {
+            showNotification('서버가 연결을 종료했습니다', 'error');
+        } else if (reason === 'transport close') {
+            showNotification('네트워크 연결이 끊어졌습니다', 'error');
+        } else {
+            showNotification(`연결 끊김 (${reason})`, 'error');
+        }
+    });
+    
+    // 📌 재연결 시도 중
+    state.socket.on('connect_error', (error) => {
+        console.error('❌ Socket 연결 오류:', error);
+        showNotification(`연결 오류: ${error.message || '알 수 없는 오류'}`, 'error');
+    });
+    
+    // 📌 재연결 성공
+    state.socket.on('reconnect', (attemptNumber) => {
+        console.log(`✅ 재연결 성공 (${attemptNumber}번째 시도)`);
+        showNotification('✅ 서버 재연결 성공', 'success');
     });
 
     // 다른 사용자 입장
@@ -1018,11 +1143,22 @@ async function toggleScreenShare() {
 
 async function startScreenShare() {
     try {
+        // ✅ 보안 컨텍스트 확인
+        if (!isSecureContext()) {
+            showNotification('⚠️ 화면 공유는 HTTPS 또는 localhost에서만 가능합니다', 'error');
+            console.warn('화면 공유는 HTTPS/localhost 환경에서만 작동합니다');
+            return;
+        }
+
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
             video: {
                 cursor: 'always'
             },
             audio: false
+        }).catch(error => {
+            // ✅ 권한 오류 처리
+            const errorMsg = handleMediaError(error, 'getDisplayMedia');
+            throw new Error(errorMsg);
         });
 
         state.screenStream = screenStream;
@@ -1062,9 +1198,12 @@ async function startScreenShare() {
             stopScreenShare();
         };
     } catch (error) {
-        if (error.name !== 'NotAllowedError') {
-            showNotification('화면 공유 중 오류가 발생했습니다', 'error');
-            console.error('화면 공유 오류:', error);
+        if (error.name === 'NotAllowedError') {
+            console.log('💡 사용자가 화면 공유를 취소함');
+        } else {
+            const errorMsg = error.message || '화면 공유 중 오류가 발생했습니다';
+            showNotification(errorMsg, 'error');
+            console.error('❌ 화면 공유 오류:', error);
         }
     }
 }
@@ -1077,16 +1216,26 @@ async function stopScreenShare() {
 
     state.isScreenSharing = false;
 
-    // 원본 카메라 스트림으로 복구
-    state.localStream.getVideoTracks().forEach(track => {
-        Object.values(state.peerConnections).forEach(pc => {
-            pc.getSenders().forEach(sender => {
-                if (sender.track?.kind === 'video') {
-                    sender.replaceTrack(track);
-                }
+    // ✅ 원본 카메라 스트림으로 복구 (오류 처리 개선)
+    try {
+        state.localStream.getVideoTracks().forEach(track => {
+            Object.values(state.peerConnections).forEach(pc => {
+                pc.getSenders().forEach(sender => {
+                    if (sender.track?.kind === 'video') {
+                        sender.replaceTrack(track);
+                    }
+                });
             });
         });
-    });
+    } catch (error) {
+        console.error('❌ 카메라 복구 오류:', error);
+        // 카메라 복구 실패 시 사용자는 다시 참여를 권장
+        if (!isSecureContext()) {
+            showNotification('보안 조건에서만 화면 공유 복구가 가능합니다', 'error');
+        } else {
+            showNotification('카메라 복구 중 오류가 발생했습니다. 다시 참여해주세요.', 'error');
+        }
+    }
 
     document.getElementById('screen-share-container').style.display = 'none';
     document.getElementById('screen-share-btn').classList.remove('active');
@@ -1238,7 +1387,7 @@ function addChatMessage(userId, userName, message, timestamp, isInstructor = fal
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-// 파일 선택 처리
+// ✅ 파일 선택 처리 (네트워크 최적화)
 function handleFileSelect(event) {
     const file = event.target.files[0];
     
@@ -1250,18 +1399,35 @@ function handleFileSelect(event) {
         return;
     }
 
-    // 파일 크기 확인 (5MB 이하)
-    if (file.size > 5 * 1024 * 1024) {
-        showNotification('이미지 크기는 5MB 이하여야 합니다', 'error');
+    // ✅ 파일 크기 확인 (1MB 이하 - WebRTC 채널 최적화)
+    const MAX_SIZE = 1 * 1024 * 1024;  // 1MB
+    if (file.size > MAX_SIZE) {
+        showNotification(`⚠️ 이미지 크기는 ${MAX_SIZE / 1024 / 1024}MB 이하여야 합니다 (현재: ${(file.size / 1024 / 1024).toFixed(1)}MB)\n이미지를 압축하거나 크기를 줄여주세요`, 'error');
         return;
     }
 
     // FileReader로 이미지 데이터 읽기
     const reader = new FileReader();
+    
+    reader.onerror = () => {
+        console.error('❌ 파일 읽기 오류:', reader.error);
+        showNotification('파일을 읽을 수 없습니다', 'error');
+    };
+    
     reader.onload = (e) => {
-        selectedImageData = e.target.result;
+        const dataUrl = e.target.result;
+        
+        // ✅ 데이터 크기 재확인 (Base64 인코딩 후 크기 증가)
+        if (dataUrl.length > 1.5 * 1024 * 1024) {
+            showNotification('⚠️ 압축된 이미지도 너무 큽니다. 더 작은 이미지를 선택해주세요', 'error');
+            return;
+        }
+        
+        selectedImageData = dataUrl;
+        console.log(`📸 이미지 선택됨 (크기: ${(dataUrl.length / 1024).toFixed(1)}KB)`);
         displayImagePreview(selectedImageData);
     };
+    
     reader.readAsDataURL(file);
 }
 
@@ -1477,27 +1643,58 @@ function activateAnonymousMode() {
     showNotification('🎭 익명 모드를 활성화했습니다', 'success');
 }
 
-// ✅ 강의실 코드 복사
+// ✅ 강의실 코드 복사 (HTTPS/localhost 폴백 지원)
 function copyRoomCode() {
     const roomCode = document.getElementById('current-room-id').textContent;
     const copyBtn = document.getElementById('copy-room-code-btn');
     
-    navigator.clipboard.writeText(roomCode).then(() => {
-        // 버튼 임시 변경
-        const originalText = copyBtn.textContent;
-        copyBtn.textContent = '✅';
-        copyBtn.classList.add('copied');
-        
-        showNotification(`"${roomCode}" 복사되었습니다! ✅`, 'success');
-        
-        // 2초 후 원래 상태로 복원
-        setTimeout(() => {
-            copyBtn.textContent = originalText;
-            copyBtn.classList.remove('copied');
-        }, 2000);
-    }).catch(() => {
-        showNotification('복사 실패 ❌', 'error');
-    });
+    // 1️⃣ Clipboard API 지원 확인
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(roomCode).then(() => {
+            showCopySuccess(copyBtn, roomCode);
+        }).catch(error => {
+            console.warn('⚠️ Clipboard API 실패:', error);
+            // 폴백: 수동 선택 방식
+            fallbackCopyToClipboard(roomCode, copyBtn);
+        });
+    } else {
+        // 2️⃣ Clipboard API 미지원 → 폴백 방식
+        console.log('⚠️ Clipboard API 미지원 (비보안 컨텍스트) → 폴백 사용');
+        fallbackCopyToClipboard(roomCode, copyBtn);
+    }
+}
+
+// ✅ 복사 성공 애니메이션
+function showCopySuccess(btn, code) {
+    const originalText = btn.textContent;
+    btn.textContent = '✅';
+    btn.classList.add('copied');
+    showNotification(`"${code}" 복사되었습니다! ✅`, 'success');
+    
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('copied');
+    }, 2000);
+}
+
+// ✅ 폴백: 텍스트 영역을 이용한 복사
+function fallbackCopyToClipboard(text, btn) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    
+    try {
+        textarea.select();
+        document.execCommand('copy');
+        showCopySuccess(btn, text);
+    } catch (error) {
+        console.error('❌ 폴백 복사 실패:', error);
+        showNotification('복사 실패. 수동으로 코드를 복사해주세요: ' + text, 'error');
+    } finally {
+        document.body.removeChild(textarea);
+    }
 }
 
 // ========== 회의 종료 ==========
@@ -1572,20 +1769,33 @@ async function refineQuestion() {
     btn.textContent = '⏳';
 
     try {
-        // 백엔드 API 호출
+        // 백엔드 API 호출 (타임아웃 포함)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
         const response = await fetch(`${BACKEND_URL}/api/refine-question`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ question: question })
+            body: JSON.stringify({ question: question }),
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
-            throw new Error(`API 오류: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.error || `API 오류: ${response.status}`;
+            throw new Error(errorMsg);
         }
 
         const data = await response.json();
+        
+        if (!data.refinedQuestion) {
+            throw new Error('응답이 올바르지 않습니다');
+        }
+
         const refinedQuestion = data.refinedQuestion;
         
         state.suggestedQuestion = refinedQuestion;
@@ -1595,8 +1805,24 @@ async function refineQuestion() {
         document.getElementById('suggestion-area').style.display = 'block';
         
     } catch (error) {
-        console.error('질문 다듬기 오류:', error);
-        showNotification('질문 다듬기 중 오류가 발생했습니다', 'error');
+        console.error('❌ 질문 다듬기 오류:', error.message);
+        
+        let userMessage = '질문 다듬기 중 오류가 발생했습니다';
+        
+        // 오류 유형별 메시지
+        if (error.name === 'AbortError') {
+            userMessage = '요청 시간 초과 (10초). 네트워크를 확인해주세요.';
+        } else if (error.message.includes('API 키')) {
+            userMessage = 'OpenAI API 설정이 필요합니다. 관리자에게 문의해주세요.';
+        } else if (error.message.includes('429')) {
+            userMessage = 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
+        } else if (error.message.includes('401')) {
+            userMessage = 'API 인증 오류. 관리자에게 문의해주세요.';
+        } else if (!navigator.onLine) {
+            userMessage = '네트워크 연결이 끊어졌습니다.';
+        }
+        
+        showNotification(userMessage, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = '✨';
@@ -1654,16 +1880,21 @@ function renameUsername() {
         // 3. 메뉴 닫기
         document.getElementById('username-menu').style.display = 'none';
         
-        // 4. 다른 사용자들에게 이름 변경 알림
+        // 4. 다른 사용자들에게 이름 변경 알림 (오류 처리 포함)
         if (state.socket) {
-            state.socket.emit('username-changed', {
-                roomId: state.roomId,
-                userId: state.socket.id,
-                newName: trimmedName
-            });
+            try {
+                state.socket.emit('username-changed', {
+                    roomId: state.roomId,
+                    userId: state.socket.id,
+                    newName: trimmedName
+                });
+                showNotification(`이름이 "${trimmedName}"으로 변경되었습니다`);
+            } catch (error) {
+                console.error('❌ 이름 변경 전송 오류:', error);
+                // 로컬 UI 업데이트는 되었으므로 경고만 표시
+                showNotification(`이름이 로컬에서만 변경되었습니다. 네트워크 오류를 확인해주세요.`, 'error');
+            }
         }
-        
-        showNotification(`이름이 "${trimmedName}"으로 변경되었습니다`);
     }
 }
 
