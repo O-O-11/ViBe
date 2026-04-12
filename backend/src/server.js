@@ -123,7 +123,7 @@ const rooms = {};
 // ✅ 익명 이름 생성 함수
 function generateAnonymousName() {
   const verbs = [
-    '재치있는', '활기찬', '헤엄치는', '뛰는', '춤추는', 
+    '재치있는', '활기찬', '뛰는', '춤추는', 
     '노래하는', '우는', '웃는', '조용한', '재빠른', '느린',
     '화난', '친절한', '장난치는', '새침한', '신나하는',
     '열정적인', '차분한', '용감한', '수줍은', '똑똑한',
@@ -133,9 +133,9 @@ function generateAnonymousName() {
   const animals = [
     '호랑이', '사자', '곰', '토끼', '여우', '원숭이', '수달', '참새', 
     '독수리', '펭귄', '고양이', '개', '돼지', '소', '말', '양', '닭',
-    '오리', '거북이', '뱀', '악어', '사슴', '기린', '얼룩말', '고래', '아르마딜로', '고슴도치',
-    '코알라', '캥거루', '코끼리', '판다', '라쿤', '스컹크', '미어캣', '카멜레온', '이구아나', '낙타',
-    '코뿔소', '하마', '바다사자', '물개', '해달', '펠리컨', '플라밍고', '타조', '앵무새', '까마귀'
+    '오리', '거북이', '뱀', '악어', '사슴', '기린', '얼룩말', '고래',
+    '코알라', '캥거루', '코끼리', '판다', '라쿤', '스컹크', '미어캣', '낙타',
+    '코뿔소', '하마', '물개', '해달', '펠리컨', '타조', '앵무새', '까마귀'
   ];
   
   const verb = verbs[Math.floor(Math.random() * verbs.length)];
@@ -687,7 +687,7 @@ io.on('connection', (socket) => {
 
   // ❓ 퀴즈 출제 (quiz-created 이벤트)
   socket.on('quiz-created', (data) => {
-    const { roomId, question, correctAnswer, quizId } = data;
+    const { roomId, question, correctAnswer, quizId, quizNumber } = data;
     
     if (!rooms[roomId]) {
       console.log(`❌ 방을 찾을 수 없습니다: ${roomId}`);
@@ -703,6 +703,7 @@ io.on('connection', (socket) => {
       id: quizId || Date.now().toString(),  // ✅ 클라이언트의 quizId 사용
       question: question,
       correctAnswer: correctAnswer,
+      quizNumber: quizNumber,  // ✅ 퀴즈 번호 저장
       createdBy: socket.id,
       answers: { O: [], X: [] },
       status: 'ongoing'  // ✅ 퀴즈 상태 추가 (진행중/종료)
@@ -711,13 +712,14 @@ io.on('connection', (socket) => {
     rooms[roomId].quizzes.push(quiz);
     rooms[roomId].currentQuiz = quiz;
     
-    console.log(`❓ 퀴즈 출제: "${question}" (정답: ${correctAnswer}) [ID: ${quiz.id}]`);
+    console.log(`❓ 퀴즈 출제: 퀴즈 ${quizNumber} - "${question}" (정답: ${correctAnswer}) [ID: ${quiz.id}]`);
     
     // 모든 사용자에게 퀴즈 브로드캐스트
     io.to(roomId).emit('quiz-created', {
       quizId: quiz.id,  // ✅ quizId 포함
       question: question,
       correctAnswer: correctAnswer,
+      quizNumber: quizNumber,  // ✅ 퀴즈 번호도 포함
       instructorName: socket.data?.userName || '강의자'
     });
   });

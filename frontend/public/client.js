@@ -811,14 +811,15 @@ function initializeSocket() {
     // ========== 퀴즈 이벤트 리스너 ==========
     // 퀴즈 출제됨
     state.socket.on('quiz-created', (data) => {
-        const { quizId, question, correctAnswer, instructorName, timestamp } = data;
-        console.log(`❓ 퀴즈 출제됨: ${question} (정답: ${correctAnswer}) [ID: ${quizId}]`);
+        const { quizId, question, correctAnswer, instructorName, timestamp, quizNumber } = data;
+        console.log(`❓ 퀴즈 출제됨: 퀴즈 ${quizNumber} - ${question} (정답: ${correctAnswer}) [ID: ${quizId}]`);
         
         state.currentQuiz = {
             quizId: quizId,  // ✅ quizId 포함
             question: question,
             correctAnswer: correctAnswer,
-            timestamp: timestamp || Date.now()
+            timestamp: timestamp || Date.now(),
+            quizNumber: quizNumber  // ✅ 퀴즈 번호 추가
         };
         
         // ✅ 각 퀴즈별 독립적으로 상태 관리
@@ -828,7 +829,7 @@ function initializeSocket() {
         state.correctAnswer = correctAnswer;
         state.hasAnsweredQuiz = false;
 
-        displayQuiz(question);
+        displayQuiz(question, quizNumber);
     });
 
     // 퀴즈 결과
@@ -2754,12 +2755,16 @@ function createQuiz() {
 
     // ✅ 각 퀴즈에 고유 ID 생성
     const quizId = `quiz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // ✅ 퀴즈 번호 미리 계산
+    const quizNumber = state.quizHistory.length + 1;
 
     const quizData = {
         question: question,
         correctAnswer: correctAnswer,
         roomId: state.roomId,
-        quizId: quizId  // ✅ 백엔드로 quizId 전송
+        quizId: quizId,  // ✅ 백엔드로 quizId 전송
+        quizNumber: quizNumber  // ✅ 퀴즈 번호도 함께 전송
     };
 
     // 백엔드로 퀴즈 전송
@@ -2806,9 +2811,11 @@ function createQuiz() {
     correctAnswerRadios.forEach(radio => radio.checked = false);
 }
 
-function displayQuiz(question) {
-    // 🔢 퀴즈 번호 계산 (이미 배열에 추가된 항목에서 가져오기)
-    const quizNumber = state.quizHistory[state.quizHistory.length - 1]?.quizNumber || 1;
+function displayQuiz(question, quizNumber) {
+    // 🔢 퀴즈 번호 (외부에서 전달받거나 로컬에서 계산)
+    if (!quizNumber) {
+        quizNumber = state.quizHistory[state.quizHistory.length - 1]?.quizNumber || 1;
+    }
     
     // 채팅창에 퀴즈 문제 표시 (퀴즈 번호와 함께)
     addChatMessage('시스템', `❓ 퀴즈 ${quizNumber}`, question, Date.now(), false);
