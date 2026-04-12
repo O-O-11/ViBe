@@ -256,10 +256,33 @@ io.on('connection', (socket) => {
   });
 
   // 방에 참여
+  // ✅ 방 입장 전 검증 (참여 버튼용)
+  socket.on('validate-room', (data, callback) => {
+    const { roomId, isJoining } = data;
+
+    // ✅ "참여" 버튼인 경우: 기존 방이 반드시 존재해야 함
+    if (isJoining && !rooms[roomId]) {
+      console.error(`❌ [방 검증 실패] 방을 찾을 수 없습니다: ${roomId}`);
+      
+      socket.emit('room-validation', {
+        error: true,
+        message: `방을 찾을 수 없습니다. (방 ID: ${roomId})`
+      });
+      return;
+    }
+
+    // ✅ 검증 성공
+    console.log(`✅ [방 검증] 방 존재: ${roomId}`);
+    socket.emit('room-validation', {
+      error: false,
+      message: '방 검증 성공'
+    });
+  });
+
   socket.on('join-room', (data, callback) => {
     const { roomId, userName, isJoining } = data;
 
-    // ✅ "참여" 버튼인 경우: 기존 방이 반드시 존재해야 함
+    // ✅ "참여" 버튼인 경우: 기존 방이 반드시 존재해야 함 (재검증)
     if (isJoining && !rooms[roomId]) {
       console.error(`❌ [참여 실패] 방을 찾을 수 없습니다: ${roomId}`);
       

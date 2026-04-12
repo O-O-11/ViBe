@@ -213,7 +213,69 @@ async function joinRoom(userName, roomId, isJoining = false) {
             showNotification('💡 카메라/화면공유는 HTTPS 또는 localhost에서만 작동합니다', 'info');
         }
 
-        // 로컬 스트림 초기화 (타임아웃 10초)
+        // ✅ STEP 1: 먼저 서버에 방 입장 요청 (캠 켜기 전!)
+        showNotification('서버 연결 중...', 'info');
+        
+        if (!state.socket) {
+            // ✅ 다른 네트워크 연결 안정화 옵션
+            state.socket = io(BACKEND_URL, {
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: 10,
+                transports: ['websocket', 'polling'],
+                upgrade: true,
+                rejectUnauthorized: false,
+                multiplex: false
+            });
+
+            // ✅ 연결 이벤트 모니터링 (다른 네트워크 환경 진단용)
+            state.socket.on('connect', () => {
+                console.log(`✅ 서버 연결 성공`);
+            });
+
+            state.socket.on('connect_error', (error) => {
+                console.error(`❌ 서버 연결 오류:`, error.message);
+                showNotification(`서버 연결 실패: ${error.message}`, 'error');
+            });
+
+            state.socket.on('disconnect', (reason) => {
+                console.warn(`⚠️  서버 연결 종료: ${reason}`);
+                if (reason === 'transport close') {
+                    showNotification('네트워크 연결이 끊어졌습니다', 'error');
+                }
+            });
+        }
+
+        // ✅ 방 입장 검증 (타임아웃 5초)
+        const joinPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('방 입장 요청 타임아웃 (5초)'));
+            }, 5000);
+
+            // ✅ 서버에서 'room-validation' 응답 대기
+            state.socket.once('room-validation', (response) => {
+                clearTimeout(timeout);
+                if (response && response.error) {
+                    reject(new Error(response.message));
+                } else {
+                    resolve(response);
+                }
+            });
+
+            // ✅ 방 입장 요청 (room-validation 응답 기다림)
+            state.socket.emit('validate-room', {
+                roomId: roomId,
+                userName: userName,
+                isJoining: isJoining
+            });
+        });
+
+        // 방 입장 검증 완료 (서버에서 OK 받았음) 
+        await joinPromise;
+        console.log('✅ 방 입장 검증 완료');
+
+        // ✅ STEP 2: 검증 성공 후에만 카메라 켜기
         showNotification('카메라 접근 중...', 'info');
         
         const mediaPromise = navigator.mediaDevices.getUserMedia({
@@ -258,45 +320,10 @@ async function joinRoom(userName, roomId, isJoining = false) {
         // ✅ 네트워크 상태 표시
         console.log(`📌 WebRTC 기능: ${isSecure ? '✅ 모두 사용 가능' : '❌ 카메라/화면공유만 제한'}`);
 
-        // 소켓 연결 및 방 참여 (타임아웃 포함)
-        if (!state.socket) {
-            showNotification('서버 연결 중...', 'info');
-            
-            // ✅ 다른 네트워크 연결 안정화 옵션
-            state.socket = io(BACKEND_URL, {
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                reconnectionAttempts: 10,
-                transports: ['websocket', 'polling'],
-                upgrade: true,
-                rejectUnauthorized: false,
-                multiplex: false
-            });
-
-            // ✅ 연결 이벤트 모니터링 (다른 네트워크 환경 진단용)
-            state.socket.on('connect', () => {
-                console.log(`✅ 서버 연결 성공`);
-                showNotification('서버 연결 완료', 'success');
-            });
-
-            state.socket.on('connect_error', (error) => {
-                console.error(`❌ 서버 연결 오류:`, error.message);
-                showNotification(`서버 연결 실패: ${error.message}`, 'error');
-            });
-
-            state.socket.on('disconnect', (reason) => {
-                console.warn(`⚠️  서버 연결 종료: ${reason}`);
-                if (reason === 'transport close') {
-                    showNotification('네트워크 연결이 끊어졌습니다', 'error');
-                }
-            });
-        }
-
-        // 방 참여 (타임아웃 5초)
-        const joinPromise = new Promise((resolve, reject) => {
+        // ✅ STEP 3: 이제 join-room 완료 (existing-users 대기)
+        const existingUsersPromise = new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
-                reject(new Error('방 입장 요청 타임아웃 (5초)'));
+                reject(new Error('사용자 목록 수신 타임아웃 (5초)'));
             }, 5000);
 
             state.socket.once('existing-users', (data) => {
@@ -304,29 +331,17 @@ async function joinRoom(userName, roomId, isJoining = false) {
                 resolve(data);
             });
 
-            // ✅ 콜백 함수로 서버 응답 처리 (에러 검증)
+            // 검증 후 실제 방 입장
             state.socket.emit('join-room', {
                 roomId: roomId,
                 userName: userName,
-                isJoining: isJoining  // ✅ 참여인지 생성인지 플래그 추가
-            }, (response) => {
-                clearTimeout(timeout);
-                
-                if (response && response.error) {
-                    // ❌ 서버에서 에러 응답
-                    reject(new Error(response.message));
-                }
+                isJoining: isJoining
             });
         });
 
-        try {
-            await joinPromise;
-            showNotification(`${userName}님이 회의에 입장했습니다`, 'success');
-        } catch (error) {
-            console.error('❌ 방 입장 오류:', error.message);
-            showNotification(`방 입장 실패: ${error.message}`, 'error');
-            throw error;
-        }
+        await existingUsersPromise;
+        console.log('✅ 방 입장 완료');
+        showNotification(`${userName}님이 회의에 입장했습니다`, 'success');
 
     } catch (error) {
         const errorMsg = error.message || '카메라/마이크 접근 권한을 확인해주세요';
