@@ -409,6 +409,8 @@ function setupSocketEvents() {
         // 강의자 배지 표시
         if (state.isInstructor) {
             document.getElementById('instructor-badge-container').style.display = 'flex';
+            // 로컬 비디오를 크게 표시
+            document.getElementById('local-video-container').classList.add('instructor');
             // ✅ 추가: 강의자인 경우 익명화 버튼도 표시
             const anonymizeBtn = document.getElementById('anonymize-btn');
             if (anonymizeBtn) {
@@ -1387,6 +1389,12 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         const videoContainer = document.createElement('div');
         videoContainer.id = `remote-video-${remoteUserId}`;
         videoContainer.className = 'video-tile remote';
+        
+        // 강의자인 경우 instructor 클래스 추가
+        const userInfo = state.remoteUsers[remoteUserId];
+        if (userInfo && userInfo.isInstructor) {
+            videoContainer.classList.add('instructor');
+        }
 
         const video = document.createElement('video');
         video.id = `remote-video-element-${remoteUserId}`;
@@ -1400,7 +1408,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         const label = document.createElement('div');
         label.className = 'video-label';
         
-        const userInfo = state.remoteUsers[remoteUserId];
+        // 이미 위에서 선언된 userInfo 재사용
         if (userInfo && userInfo.isInstructor) {
             label.innerHTML = `${remoteUserName} <span class="instructor-badge">강의자</span>`;
             console.log(`👨‍🏫 강의자 라벨 추가: ${remoteUserName}`);
