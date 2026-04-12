@@ -2651,12 +2651,21 @@ function showQuizResults() {
         return;
     }
 
-    // 백엔드에 결과 조회 요청
+    if (!state.currentQuiz) {
+        showNotification('진행 중인 퀴즈가 없습니다', 'error');
+        return;
+    }
+
+    // ✅ 현재 퀴즈의 quizId 가져오기
+    const quizId = state.currentQuiz.quizId;
+
+    // 백엔드에 이 퀴즈의 결과 요청
     state.socket.emit('quiz-results-request', {
-        roomId: state.roomId
+        roomId: state.roomId,
+        quizId: quizId  // ✅ 추가: 어느 퀴즈의 결과인지 명확히
     });
 
-    console.log('📤 퀴즈 결과 요청');
+    console.log(`📤 퀴즈 결과 요청 - quizId: ${quizId}`);
 }
 
 function displayQuizResults(results, quizId, correctAnswer) {
