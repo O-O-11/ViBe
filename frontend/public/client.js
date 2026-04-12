@@ -763,11 +763,14 @@ function initializeSocket() {
             quizId: quizId,  // ✅ quizId 포함
             question: question,
             correctAnswer: correctAnswer,
-            timestamp: timestamp || Date.now(),
-            status: 'ongoing'  // ✅ 상태 추가 (ongoing → finished)
+            timestamp: timestamp || Date.now()
         };
+        
+        // ✅ 각 퀴즈별 독립적으로 상태 관리
+        state.quizStatuses[quizId] = 'ongoing';
+        state.quizAnswers[quizId] = {};  // ✅ 이 퀴즈만 새로 생성 (다른 답변은 유지)
+        
         state.correctAnswer = correctAnswer;
-        state.quizAnswers = {};
         state.hasAnsweredQuiz = false;
 
         displayQuiz(question);
@@ -780,11 +783,9 @@ function initializeSocket() {
         const { quizId, question, correctAnswer, oCount, xCount, totalAnswers, answers } = data;
         console.log(`📊 퀴즈 결과: O=${oCount}, X=${xCount}, quizId=${quizId}, 정답=${correctAnswer}`);
         
-        // ✅ 상태 변경: 더 이상 답변 불가
-        if (state.currentQuiz) {
-            state.currentQuiz.status = 'finished';
-            console.log('🔒 퀴즈 상태 변경: finished (답변 불가능)');
-        }
+        // ✅ 각 퀴즈별 독립적으로 상태 변경
+        state.quizStatuses[quizId] = 'finished';
+        console.log(`🔒 퀴즈 ${quizId} 상태 변경: finished (답변 불가능)`);
         
         const results = {
             quizId: quizId,
@@ -2590,10 +2591,9 @@ function submitAnswerFromChat(answer, quizId) {
         return;
     }
 
-    // ✅ 상태 확인: 이미 결과가 표시되면 답변 불가
-    if (state.currentQuiz && state.currentQuiz.status === 'finished') {
-        showNotification('이미 결과가 표시되어 답변을 변경할 수 없습니다', 'warning');
-        return;
+    // ✅ 상태 확인: 이미 결과가 표시되면 답변 불가 (알림 없이 차단)
+    if (state.quizStatuses[quizId] === 'finished') {
+        return;  // 조용히 차단
     }
 
     const previousAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
@@ -2717,31 +2717,47 @@ function displayQuizResults(results, quizId, correctAnswer) {
         const oBtns = targetQuizContainer.querySelectorAll('.o-btn');
         const xBtns = targetQuizContainer.querySelectorAll('.x-btn');
 
-        // ✅ 학생의 답이 있을 때만 색칠
-        const userAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
+        // ✅ 색칠 로직: 강의자 vs 학생 다르게 처리
+        console.log(`🎨 색칠 시작 - quizId=${quizId}, 강의자?=${state.isInstructor}`);
+        console.log(`   state.quizAnswers[${quizId}]:`, state.quizAnswers[quizId]);
+        console.log(`   correctAnswer=${correctAnswer}`);
         
-        if (userAnswer) {
-            // 학생의 답과 정답 비교
-            const isCorrect = userAnswer === correctAnswer;
+        if (state.isInstructor) {
+            // ✅ 강의자: 정답 버튼만 초록색으로 표시
+            const correctBtn = correctAnswer === 'O'
+                ? targetQuizContainer.querySelector('.chat-quiz-btn.o-btn')
+                : targetQuizContainer.querySelector('.chat-quiz-btn.x-btn');
             
-            const targetBtn = userAnswer === 'O'
-                ? (targetQuizContainer.querySelector('.chat-quiz-btn.o-btn') || targetQuizContainer.querySelector('.o-btn'))
-                : (targetQuizContainer.querySelector('.chat-quiz-btn.x-btn') || targetQuizContainer.querySelector('.x-btn'));
+            if (correctBtn) {
+                correctBtn.setAttribute('style', 'background-color: rgba(76, 175, 80, 0.5) !important; color: white !important;');
+                console.log(`   ✅ 강의자 화면: 정답(${correctAnswer}) 버튼 초록색`);
+            }
+        } else {
+            // ✅ 학생: 자신의 답변 색칠
+            const userAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
+            console.log(`   학생의 답: ${userAnswer}`);
             
-            if (targetBtn) {
-                if (isCorrect) {
-                    // 정답 → 초록색
-                    targetBtn.setAttribute('style', 'background-color: rgba(76, 175, 80, 0.5) !important; color: white !important;');
-                    console.log('✅ 초록색');
-                } else {
-                    // 오답 → 빨간색
-                    targetBtn.setAttribute('style', 'background-color: rgba(244, 67, 54, 0.5) !important; color: white !important;');
-                    console.log('❌ 빨간색');
+            if (userAnswer) {
+                const isCorrect = userAnswer === correctAnswer;
+                
+                const targetBtn = userAnswer === 'O'
+                    ? targetQuizContainer.querySelector('.chat-quiz-btn.o-btn')
+                    : targetQuizContainer.querySelector('.chat-quiz-btn.x-btn');
+                
+                if (targetBtn) {
+                    if (isCorrect) {
+                        targetBtn.setAttribute('style', 'background-color: rgba(76, 175, 80, 0.5) !important; color: white !important;');
+                        console.log(`   ✅ 학생 화면: 자신의 답(${userAnswer}) 초록색 (정답)`);
+                    } else {
+                        targetBtn.setAttribute('style', 'background-color: rgba(244, 67, 54, 0.5) !important; color: white !important;');
+                        console.log(`   ❌ 학생 화면: 자신의 답(${userAnswer}) 빨간색 (오답)`);
+                    }
+                    targetBtn.classList.remove('selected');
                 }
-                targetBtn.classList.remove('selected');
+            } else {
+                console.log(`   ℹ️ 학생이 이 퀴즈에 답변하지 않음`);
             }
         }
-        // 답이 없으면 아무것도 표시 안 함
     }
 }
 
