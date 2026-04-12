@@ -884,24 +884,55 @@ body {
     bottom: 240px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    border: none;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 2px solid rgba(255, 255, 255, 0.2);
     color: white;
-    padding: 12px 16px;
     border-radius: 50%;
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
     font-size: 24px;
     cursor: pointer;
     z-index: 31;
-    transition: background 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .control-bar-toggle:hover {
-    background: rgba(102, 126, 234, 0.9);
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.control-bar-toggle:active {
+    transform: translateX(-50%) scale(0.95);
+}
+
+/* 슬라이드 애니메이션 */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
 }
 
 /* 제어 바 */
@@ -910,19 +941,44 @@ body {
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(40, 40, 80, 0.85) 100%);
+    backdrop-filter: blur(10px);
     display: flex;
-    gap: 24px;
-    padding: 24px 40px;
-    border-radius: 50px;
+    gap: 12px;
+    padding: 16px 28px;
+    border-radius: 60px;
     z-index: 30;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    animation: slideUp 0.4s ease-out;
+}
+
+/* 제어 바 버튼 개선 */
+.control-bar .control-btn {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.control-bar .control-btn:hover {
+    background: rgba(102, 126, 234, 0.4);
+    border-color: rgba(102, 126, 234, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+}
+
+.control-bar .control-btn.off {
+    opacity: 0.6;
+    background: rgba(100, 100, 120, 0.3);
 }
 
 /* 제어 바 숨김 상태 */
 .control-bar.hidden {
     opacity: 0;
     visibility: hidden;
+    animation: slideDown 0.4s ease-in forwards;
 }
 
 /* 알림 */
