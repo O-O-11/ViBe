@@ -881,16 +881,10 @@ function initializeConferenceScreen() {
     // 사이드바 토글
     document.getElementById('toggle-sidebar-btn').addEventListener('click', toggleSidebar);
 
-    // 제어 바 토글 (클릭시 표시/숨김)
-    const controlBar = document.querySelector('.control-bar');
-    if (controlBar) {
-        controlBar.addEventListener('click', (e) => {
-            // 버튼 클릭 시에는 토글하지 않도록 (버튼 기능 우선)
-            if (e.target.closest('.control-btn') || e.target.closest('button')) {
-                return;
-            }
-            toggleControlBar();
-        });
+    // 제어 바 토글 버튼
+    const controlBarToggleBtn = document.getElementById('control-bar-toggle-btn');
+    if (controlBarToggleBtn) {
+        controlBarToggleBtn.addEventListener('click', toggleControlBar);
     }
 
     // ✅ 강의실 코드 복사
@@ -2295,12 +2289,20 @@ function toggleSidebar() {
 // ========== 제어 바 토글 ==========
 function toggleControlBar() {
     const controlBar = document.querySelector('.control-bar');
+    const toggleBtn = document.getElementById('control-bar-toggle-btn');
+    
     state.isControlBarVisible = !state.isControlBarVisible;
     
     if (state.isControlBarVisible) {
+        // 패널 표시
         controlBar.classList.remove('hidden');
+        toggleBtn.textContent = '🔽';
+        toggleBtn.title = '제어 바 숨김';
     } else {
+        // 패널 숨김
         controlBar.classList.add('hidden');
+        toggleBtn.textContent = '🔼';
+        toggleBtn.title = '제어 바 표시';
     }
 }
 
