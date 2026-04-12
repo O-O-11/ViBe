@@ -1784,6 +1784,8 @@ function addChatMessage(userId, userName, message, timestamp, isInstructor = fal
     const content = document.createElement('div');
     content.textContent = message;
 
+    messageEl.appendChild(header);
+
     // 이미지가 있으면 표시
     if (imageData) {
         const imageEl = document.createElement('img');
@@ -1820,7 +1822,6 @@ function addChatMessage(userId, userName, message, timestamp, isInstructor = fal
     
     time.textContent = timeString;
 
-    messageEl.appendChild(header);
     messageEl.appendChild(content);
     messageEl.appendChild(time);
 
