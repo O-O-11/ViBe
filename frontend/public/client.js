@@ -2847,6 +2847,13 @@ function displayQuiz(question, quizNumber) {
     buttons.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
+            
+            // ✅ 비활성화된 버튼 체크
+            if (btn.disabled) {
+                showNotification('이 선택지는 선택할 수 없습니다', 'warning');
+                return;
+            }
+            
             const answer = btn.getAttribute('data-answer');
             const quizId = quizButtonContainer.getAttribute('data-quiz-id');
             submitAnswerFromChat(answer, quizId);
@@ -2898,9 +2905,10 @@ function submitAnswerFromChat(answer, quizId) {
         return;
     }
 
-    // ✅ 상태 확인: 이미 결과가 표시되면 답변 불가 (알림 없이 차단)
+    // ✅ 상태 확인: 이미 결과가 표시되면 답변 불가 (알림 표시)
     if (state.quizStatuses[quizId] === 'finished') {
-        return;  // 조용히 차단
+        showNotification('이 퀴즈는 이미 종료되었습니다. 더 이상 답변할 수 없습니다', 'warning');
+        return;
     }
 
     const previousAnswer = state.quizAnswers[quizId] ? state.quizAnswers[quizId][state.socket.id] : null;
