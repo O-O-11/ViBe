@@ -423,6 +423,9 @@ function setupSocketEvents() {
         // 자신을 참여자 목록에 먼저 추가
         addParticipantToList(state.socket.id, state.userName, state.isInstructor, state.isVideoEnabled, state.isAudioEnabled);
         
+        // ✅ 로컬 비디오 위에 초기 미디어 아이콘 표시
+        updateLocalMediaIcons(state.isVideoEnabled, state.isAudioEnabled);
+        
         // 기존 사용자 추가 및 Offer 생성
         users.forEach(user => {
             // ✅ 사용자의 미디어 상태 전달 (기본값: 켜짐)
@@ -692,7 +695,7 @@ function initializeSocket() {
         const { userId, userName, isVideoEnabled, isAudioEnabled } = data;
         updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEnabled);
         // ✅ 원격 비디오 위의 아이콘도 업데이트
-        updateRemoteVideoMediaState(userId, isVideoEnabled, isAudioEnabled);
+        updateRemoteVideoMediaStateNew(userId, isVideoEnabled, isAudioEnabled);
     });
 
     // 화면 공유 시작
@@ -1422,7 +1425,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         
         // ✅ 초기 미디어 상태 아이콘 설정
         if (userInfo && (userInfo.isVideoEnabled !== undefined || userInfo.isAudioEnabled !== undefined)) {
-            updateRemoteVideoMediaState(
+            updateRemoteVideoMediaStateNew(
                 remoteUserId, 
                 userInfo.isVideoEnabled !== undefined ? userInfo.isVideoEnabled : true,
                 userInfo.isAudioEnabled !== undefined ? userInfo.isAudioEnabled : true
@@ -1551,6 +1554,9 @@ function toggleVideo() {
 
     showNotification(`카메라 ${state.isVideoEnabled ? '켜짐' : '꺼짐'}`);
     
+    // ✅ 로컬 비디오도 업데이트
+    updateLocalMediaIcons(state.isVideoEnabled, state.isAudioEnabled);
+    
     // ✅ 모든 사용자에게 상태 변경 알림
     state.socket.emit('user-media-state-change', {
         roomId: state.roomId,
@@ -1572,6 +1578,9 @@ function toggleAudio() {
     btn.classList.toggle('off', !state.isAudioEnabled);
     
     showNotification(`마이크 ${state.isAudioEnabled ? '켜짐' : '꺼짐'}`);
+    
+    // ✅ 로컬 비디오도 업데이트
+    updateLocalMediaIcons(state.isVideoEnabled, state.isAudioEnabled);
     
     // ✅ 모든 사용자에게 상태 변경 알림
     state.socket.emit('user-media-state-change', {
@@ -2448,22 +2457,98 @@ function updateRemoteVideoMediaState(userId, isVideoEnabled, isAudioEnabled) {
     cameraIcon.title = isVideoEnabled ? '카메라 켜짐' : '카메라 꺼짐';
     cameraIcon.textContent = isVideoEnabled ? '�️' : '❌';
     cameraIcon.style.fontSize = '24px';
-    cameraIcon.style.opacity = isVideoEnabled ? '1' : '0.5';
-    cameraIcon.style.transition = 'opacity 0.3s ease';
-    
-    // 마이크 상태 아이콘
-    const micIcon = document.createElement('span');
-    micIcon.className = 'media-icon mic-icon';
-    micIcon.title = isAudioEnabled ? '마이크 켜짐' : '마이크 꺼짐';
-    micIcon.textContent = isAudioEnabled ? '🎙️' : '❌';
-    micIcon.style.fontSize = '24px';
-    micIcon.style.opacity = isAudioEnabled ? '1' : '0.5';
-    micIcon.style.transition = 'opacity 0.3s ease';
-    
     mediaStateContainer.appendChild(cameraIcon);
     mediaStateContainer.appendChild(micIcon);
     
     console.log(`🎥 원격 사용자 ${userId}의 비디오 위 미디어 아이콘 업데이트: 카메라=${isVideoEnabled}, 마이크=${isAudioEnabled}`);
+}
+
+// ✅ 원격 비디오 화면 위의 미디어 아이콘 업데이트 (새 함수)
+function updateRemoteVideoMediaStateNew(userId, isVideoEnabled, isAudioEnabled) {
+    const mediaStateContainer = document.getElementById(`remote-media-icons-${userId}`);
+    
+    if (!mediaStateContainer) return;
+    
+    mediaStateContainer.innerHTML = '';
+    
+    // 카메라 버튼
+    const cameraBtn = document.createElement('button');
+    cameraBtn.className = 'remote-control-btn camera-btn';
+    cameraBtn.classList.toggle('camera-off', !isVideoEnabled);
+    cameraBtn.disabled = true;
+    
+    const cameraIconActive = document.createElement('span');
+    cameraIconActive.className = 'icon';
+    cameraIconActive.textContent = '🖥️';
+    cameraBtn.appendChild(cameraIconActive);
+    
+    const cameraIconDisabled = document.createElement('span');
+    cameraIconDisabled.className = 'icon-disabled';
+    cameraIconDisabled.textContent = '❌';
+    cameraBtn.appendChild(cameraIconDisabled);
+    
+    // 마이크 버튼
+    const audioBtn = document.createElement('button');
+    audioBtn.className = 'remote-control-btn audio-btn';
+    audioBtn.classList.toggle('audio-off', !isAudioEnabled);
+    audioBtn.disabled = true;
+    
+    const audioIconActive = document.createElement('span');
+    audioIconActive.className = 'icon';
+    audioIconActive.textContent = '🎙️';
+    audioBtn.appendChild(audioIconActive);
+    
+    const audioIconDisabled = document.createElement('span');
+    audioIconDisabled.className = 'icon-disabled';
+    audioIconDisabled.textContent = '❌';
+    audioBtn.appendChild(audioIconDisabled);
+    
+    mediaStateContainer.appendChild(cameraBtn);
+    mediaStateContainer.appendChild(audioBtn);
+}
+
+// ✅ 로컬 비디오 위의 미디어 아이콘 업데이트
+function updateLocalMediaIcons(isVideoEnabled, isAudioEnabled) {
+    const mediaStateContainer = document.getElementById('local-media-icons');
+    
+    if (!mediaStateContainer) return;
+    
+    mediaStateContainer.innerHTML = '';
+    
+    // 카메라 버튼
+    const cameraBtn = document.createElement('button');
+    cameraBtn.className = 'remote-control-btn camera-btn';
+    cameraBtn.classList.toggle('camera-off', !isVideoEnabled);
+    cameraBtn.disabled = true;
+    
+    const cameraIconActive = document.createElement('span');
+    cameraIconActive.className = 'icon';
+    cameraIconActive.textContent = '🖥️';
+    cameraBtn.appendChild(cameraIconActive);
+    
+    const cameraIconDisabled = document.createElement('span');
+    cameraIconDisabled.className = 'icon-disabled';
+    cameraIconDisabled.textContent = '❌';
+    cameraBtn.appendChild(cameraIconDisabled);
+    
+    // 마이크 버튼
+    const audioBtn = document.createElement('button');
+    audioBtn.className = 'remote-control-btn audio-btn';
+    audioBtn.classList.toggle('audio-off', !isAudioEnabled);
+    audioBtn.disabled = true;
+    
+    const audioIconActive = document.createElement('span');
+    audioIconActive.className = 'icon';
+    audioIconActive.textContent = '🎙️';
+    audioBtn.appendChild(audioIconActive);
+    
+    const audioIconDisabled = document.createElement('span');
+    audioIconDisabled.className = 'icon-disabled';
+    audioIconDisabled.textContent = '❌';
+    audioBtn.appendChild(audioIconDisabled);
+    
+    mediaStateContainer.appendChild(cameraBtn);
+    mediaStateContainer.appendChild(audioBtn);
 }
 
 async function refineQuestion() {

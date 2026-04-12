@@ -557,6 +557,50 @@ body {
     cursor: default;
 }
 
+/* ✅ 원격 사용자 미디어 제어 버튼 (로컬 버튼과 동일한 스타일) */
+.remote-control-btn {
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.remote-control-btn .icon {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.remote-control-btn .icon-disabled {
+    position: absolute;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.remote-control-btn.camera-off .icon-disabled {
+    display: flex;
+}
+
+.remote-control-btn.audio-off .icon-disabled {
+    display: flex;
+}
+
 .attendance-buttons {
     display: flex;
     gap: 6px;
