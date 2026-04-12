@@ -477,11 +477,15 @@ function initializeSocket() {
             // 3️⃣ 화면의 비디오 위 이름 표시 업데이트
             // ✅ 로컬 사용자인 경우
             if (user.id === state.socket.id) {
+                // ✅ state.userName 업데이트 (채팅 전송 시 사용될 이름)
+                state.userName = user.name;
+                
                 const localUsernameEl = document.getElementById('local-username');
                 if (localUsernameEl) {
                     localUsernameEl.textContent = user.name;
                     console.log(`[익명화] 로컬 비디오 라벨 업데이트: ${user.id} → ${user.name}`);
                 }
+                console.log(`[익명화] state.userName 업데이트: ${user.name}`);
             } else {
                 // ✅ 원격 사용자인 경우
                 const videoContainer = document.getElementById(`remote-video-${user.id}`);
