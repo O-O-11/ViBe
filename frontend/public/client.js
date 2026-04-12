@@ -1486,6 +1486,8 @@ async function startScreenShare() {
 
         state.screenStream = screenStream;
         state.isScreenSharing = true;
+        
+        console.log(`🖥️ 화면 공유 시작: ${screenStream.getTracks().length}개 트랙`);
 
         // 화면 공유 UI 표시
         const video = document.getElementById('screen-share-video');
@@ -1495,18 +1497,26 @@ async function startScreenShare() {
         document.getElementById('screen-share-user-name').textContent = state.userName;
         document.getElementById('screen-share-btn').classList.add('active');
 
-        // 모든 Peer connection에 화면 스트림 전송
-        screenStream.getTracks().forEach(track => {
-            state.localStream.addTrack(track);
-
-            Object.values(state.peerConnections).forEach(pc => {
-                pc.getSenders().forEach(sender => {
-                    if (sender.track && sender.track.kind === track.kind) {
-                        sender.replaceTrack(track);
+        // ✅ 모든 Peer connection에 화면 스트림 전송 (await 포함)
+        const screenVideoTrack = screenStream.getVideoTracks()[0];
+        
+        for (const remoteUserId of Object.keys(state.peerConnections)) {
+            const pc = state.peerConnections[remoteUserId];
+            const senders = pc.getSenders();
+            
+            for (const sender of senders) {
+                try {
+                    if (sender.track && sender.track.kind === 'video') {
+                        console.log(`🔄 Peer ${remoteUserId}에 화면 트랙 전송 중...`);
+                        await sender.replaceTrack(screenVideoTrack);
+                        console.log(`✅ Peer ${remoteUserId}에 화면 트랙 전송 완료`);
                     }
-                });
-            });
-        });
+                } catch (peerError) {
+                    console.error(`❌ Peer ${remoteUserId} 화면 트랙 전송 실패:`, peerError.message);
+                    // 한 peer 실패 시에도 계속 진행
+                }
+            }
+        }
 
         // 서버에 화면 공유 시작 알림
         state.socket.emit('start-screen-share', {
@@ -1516,10 +1526,14 @@ async function startScreenShare() {
 
         showNotification('화면 공유 시작');
 
-        // 화면 공유 스트림 종료 감지
+        // ✅ 화면 공유 스트림 종료 감지 (사용자가 브라우저 화면공유 UI에서 "중지")
         screenStream.getVideoTracks()[0].onended = () => {
-            stopScreenShare();
+            console.log('🛑 사용자가 화면 공유를 중지함');
+            if (state.isScreenSharing) {
+                stopScreenShare();
+            }
         };
+        
     } catch (error) {
         if (error.name === 'NotAllowedError') {
             console.log('💡 사용자가 화면 공유를 취소함');
@@ -1539,25 +1553,63 @@ async function stopScreenShare() {
 
     state.isScreenSharing = false;
 
-    // ✅ 원본 카메라 스트림으로 복구 (오류 처리 개선)
+    // ✅ 원본 카메라 스트림으로 복구 (개선된 버전)
     try {
-        state.localStream.getVideoTracks().forEach(track => {
-            Object.values(state.peerConnections).forEach(pc => {
-                pc.getSenders().forEach(sender => {
-                    if (sender.track?.kind === 'video') {
-                        sender.replaceTrack(track);
-                    }
-                });
-            });
-        });
-    } catch (error) {
-        console.error('❌ 카메라 복구 오류:', error);
-        // 카메라 복구 실패 시 사용자는 다시 참여를 권장
-        if (!isSecureContext()) {
-            showNotification('보안 조건에서만 화면 공유 복구가 가능합니다', 'error');
-        } else {
-            showNotification('카메라 복구 중 오류가 발생했습니다. 다시 참여해주세요.', 'error');
+        console.log('🎥 카메라 스트림으로 복구 시작...');
+        
+        // ✅ state.localStream에서 화면 트랙 제거
+        const videoTracks = state.localStream.getVideoTracks();
+        console.log(`📌 로컬 스트림 비디오 트랙: ${videoTracks.length}개`);
+        
+        if (videoTracks.length === 0) {
+            console.error('❌ 로컬 스트림에 비디오 트랙이 없습니다!');
+            throw new Error('카메라 스트림을 사용할 수 없습니다');
         }
+
+        const cameraTrack = videoTracks[0];
+        console.log(`✅ 카메라 트랙 선택: ${cameraTrack.id}`);
+
+        // ✅ 모든 Peer Connection 송신자 업데이트 (await 포함)
+        let updateCount = 0;
+        for (const remoteUserId of Object.keys(state.peerConnections)) {
+            const pc = state.peerConnections[remoteUserId];
+            const senders = pc.getSenders();
+            
+            for (const sender of senders) {
+                try {
+                    if (sender.track?.kind === 'video') {
+                        console.log(`🔄 Peer ${remoteUserId}의 비디오 트랙 복구 중...`);
+                        await sender.replaceTrack(cameraTrack);
+                        console.log(`✅ Peer ${remoteUserId}의 비디오 트랙 복구 완료`);
+                        updateCount++;
+                    }
+                } catch (peerError) {
+                    console.error(`❌ Peer ${remoteUserId} 트랙 복구 실패:`, peerError.message);
+                    // 한 peer 실패 시에도 계속 진행
+                }
+            }
+        }
+
+        console.log(`📊 총 ${updateCount}개 Peer 업데이트 완료`);
+
+        // ✅ 로컬 비디오 요소 업데이트 (UI 갱신)
+        const localVideo = document.getElementById('local-video');
+        if (localVideo) {
+            localVideo.srcObject = state.localStream;
+            console.log('✅ 로컬 비디오 요소 업데이트 완료');
+        }
+
+    } catch (error) {
+        console.error('❌ 카메라 복구 오류:', error.message);
+        
+        let userMsg = '카메라 복구 중 오류가 발생했습니다';
+        if (!isSecureContext()) {
+            userMsg = '⚠️ 보안 조건에서만 화면 공유 복구가 가능합니다';
+        } else if (error.message.includes('비디오 트랙이 없습니다')) {
+            userMsg = '❌ 카메라 접근이 불가능합니다. 다시 참여해주세요';
+        }
+        
+        showNotification(userMsg, 'error');
     }
 
     document.getElementById('screen-share-container').style.display = 'none';
