@@ -671,7 +671,8 @@ io.on('connection', (socket) => {
       question: question,
       correctAnswer: correctAnswer,
       createdBy: socket.id,
-      answers: { O: [], X: [] }
+      answers: { O: [], X: [] },
+      status: 'ongoing'  // ✅ 퀴즈 상태 추가 (진행중/종료)
     };
     
     rooms[roomId].quizzes.push(quiz);
@@ -706,6 +707,13 @@ io.on('connection', (socket) => {
     
     if (!targetQuiz) {
       console.log(`❌ 퀴즈를 찾을 수 없습니다: quizId=${quizId}, 저장된 quizzes=${JSON.stringify(rooms[roomId].quizzes ? rooms[roomId].quizzes.map(q => ({id: q.id, question: q.question.substring(0, 20)})) : [])}`);
+      return;
+    }
+
+    // ✅ 퀴즈 상태 확인: 진행중만 응답 받음
+    if (targetQuiz.status !== 'ongoing') {
+      console.warn(`⚠️ [퀴즈 종료됨] 응답 거부: quizId=${quizId}, status=${targetQuiz.status}, userId=${userId}, userName=${userName}`);
+      console.warn(`   - 이미 결과가 나온 퀴즈입니다. 더 이상 응답을 받지 않습니다.`);
       return;
     }
     
@@ -783,6 +791,10 @@ io.on('connection', (socket) => {
     const xCount = targetQuiz.answers.X ? targetQuiz.answers.X.length : 0;
     
     console.log(`📊 퀴즈 결과: quizId=${targetQuiz.id}, O=${oCount}, X=${xCount}, 정답=${targetQuiz.correctAnswer}`);
+
+    // ✅ 퀴즈 상태를 'finished'로 변경 (더 이상 응답 받지 않음)
+    targetQuiz.status = 'finished';
+    console.log(`🔒 퀴즈 상태 변경: ${targetQuiz.id} → finished (결과 공개됨)`);
     
     // ✅ 수정: 모든 클라이언트에게 결과 전송 (강의자 + 학생 모두)
     io.to(roomId).emit('quiz-results-data', {
