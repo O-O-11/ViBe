@@ -186,7 +186,8 @@ body {
     display: grid;
     grid-template-columns: 2fr 1fr;
     grid-template-rows: 1fr 1fr;
-    gap: 10px;
+    row-gap: 3px;
+    column-gap: 10px;
     padding: 10px;
     overflow: hidden;
     background: #1a1a1a;
