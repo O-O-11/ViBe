@@ -527,7 +527,6 @@ io.on('connection', (socket) => {
     });
     console.log(`💬 메시지: ${userName} - ${message}${isInstructor ? ' [강의자]' : ''}${imageData ? ' [이미지]' : ''}`);
   });
-  });
 
   // 방에서 나가기
   socket.on('leave-room', (data) => {
