@@ -384,12 +384,14 @@ function setupSocketEvents() {
         
         addParticipantToList(userId, userName, isInstructor, isVideoEnabled, isAudioEnabled);
 
-        // ✅ 새로운 사용자의 미디어 상태를 state.remoteUsers에 저장
+        // ✅ 새로운 사용자의 정보를 state.remoteUsers에 저장 (강의자 정보 포함)
         if (!state.remoteUsers[userId]) {
             state.remoteUsers[userId] = {};
         }
         state.remoteUsers[userId].isVideoEnabled = isVideoEnabled;
         state.remoteUsers[userId].isAudioEnabled = isAudioEnabled;
+        state.remoteUsers[userId].isInstructor = isInstructor;  // ✅ 강의자 정보 저장
+        state.remoteUsers[userId].name = userName;  // ✅ 사용자 이름 저장
 
         // ✅ 수정: 여기서는 offer를 보내지 않음
         // 새로 들어온 사람(userId)이 기존 사용자들(우리)에게 offer를 보낼 것을 기다림
@@ -438,12 +440,14 @@ function setupSocketEvents() {
             
             addParticipantToList(user.id, user.name, user.isInstructor, isVideoEnabled, isAudioEnabled);
             
-            // ✅ 원격 사용자 정보에 미디어 상태 저장 (handleRemoteStream 전에)
+            // ✅ 원격 사용자 정보에 미디어 상태 및 강의자 정보 저장 (handleRemoteStream 전에)
             if (!state.remoteUsers[user.id]) {
                 state.remoteUsers[user.id] = {};
             }
             state.remoteUsers[user.id].isVideoEnabled = isVideoEnabled;
             state.remoteUsers[user.id].isAudioEnabled = isAudioEnabled;
+            state.remoteUsers[user.id].isInstructor = user.isInstructor;  // ✅ 강의자 정보 저장
+            state.remoteUsers[user.id].name = user.name;  // ✅ 사용자 이름 저장
             
             // ✅ 수정: 새로 들어온 내가 기존 사용자들(user)에게 offer를 보냄
             // 이렇게 해야 시그널 충돌이 없음
@@ -1665,7 +1669,11 @@ async function startScreenShare() {
             userName: state.userName
         });
 
-        showNotification('화면 공유 시작');
+        // ✅ close 버튼 활성화 (본인만 닫을 수 있음)
+        document.getElementById('close-screen-share-btn').disabled = false;
+
+        // ✅ 알림 제거 (불편함)
+        // showNotification('화면 공유 시작');
 
         // ✅ 화면 공유 스트림 종료 감지 (사용자가 브라우저 화면공유 UI에서 "중지")
         screenStream.getVideoTracks()[0].onended = () => {
@@ -1757,20 +1765,27 @@ async function stopScreenShare() {
     document.getElementById('screen-share-container').style.display = 'none';
     document.getElementById('screen-share-btn').classList.remove('active');
 
+    // ✅ close 버튼 비활성화 (화면 공유 종료)
+    document.getElementById('close-screen-share-btn').disabled = true;
+
     // 서버에 화면 공유 종료 알림
     state.socket.emit('stop-screen-share', {
         roomId: state.roomId
     });
 
-    showNotification('화면 공유 종료');
+    // ✅ 알림 제거 (불편함)
+    // showNotification('화면 공유 종료');
 }
 
 function closeScreenShare() {
-    if (state.currentScreenShareUserId !== state.socket.id && state.currentScreenShareUserId !== null) {
-        handleScreenShareEnd(state.currentScreenShareUserId);
-    } else {
-        stopScreenShare();
+    // ✅ 수정: 화면 공유를 켠 사람만 끌 수 있음
+    if (state.currentScreenShareUserId !== state.socket.id) {
+        // 다른 사람이 화면 공유 중이면 닫을 수 없음
+        showNotification('화면 공유를 켠 사람만 끌 수 있습니다', 'warning');
+        return;
     }
+    
+    stopScreenShare();
 }
 
 function handleScreenShareStart(userId, userName) {
@@ -1794,6 +1809,9 @@ function handleScreenShareStart(userId, userName) {
         screenShareContainer.style.display = 'flex';
         document.getElementById('screen-share-user-name').textContent = userName;
         
+        // ✅ close 버튼 비활성화 (다른 사람이 화면공유 중이므로 이 사용자는 닫을 수 없음)
+        document.getElementById('close-screen-share-btn').disabled = true;
+        
         screenShareVideo.play().catch(err => {
             console.error(`[handleScreenShareStart] play() 오류:`, err);
         });
@@ -1815,6 +1833,9 @@ function handleScreenShareEnd(userId) {
     if (screenShareVideo && screenShareVideo.srcObject) {
         screenShareVideo.srcObject = null;
     }
+    
+    // ✅ close 버튼 비활성화 (화면 공유가 종료되었으므로)
+    document.getElementById('close-screen-share-btn').disabled = true;
     
     console.log(`화면 공유 종료`);
 }
