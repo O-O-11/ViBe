@@ -2825,7 +2825,11 @@ function showQuizResult(quizId) {
         roomId: state.roomId,
         quizId: quizId  // 특정 퀴즈 결과만 요청
     });
+    
+    // ✅ 이 퀴즈의 상태를 'finished'로 변경 (학생들의 답변 차단)
+    state.quizStatuses[quizId] = 'finished';
     console.log(`📊 백엔드에 ${quizId} 결과 요청 emit`);
+    console.log(`🔒 ${quizId} 상태 변경: finished (답변 차단됨)`);
 
     const { question, correctAnswer, oCount, xCount } = quizEntry;
     const total = oCount + xCount;
