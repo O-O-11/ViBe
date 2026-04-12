@@ -2807,8 +2807,8 @@ function createQuiz() {
 }
 
 function displayQuiz(question) {
-    // 🔢 퀴즈 번호 계산
-    const quizNumber = state.quizHistory.length + 1;
+    // 🔢 퀴즈 번호 계산 (이미 배열에 추가된 항목에서 가져오기)
+    const quizNumber = state.quizHistory[state.quizHistory.length - 1]?.quizNumber || 1;
     
     // 채팅창에 퀴즈 문제 표시 (퀴즈 번호와 함께)
     addChatMessage('시스템', `❓ 퀴즈 ${quizNumber}`, question, Date.now(), false);
