@@ -199,26 +199,45 @@ async function joinRoom(userName, roomId) {
     state.roomId = roomId;
 
     try {
-        // ✅ 보안 컨텍스트 확인
-        if (!isSecureContext()) {
+        // ✅ 보안 컨텍스트 확인 (다른 네트워크 진단)
+        const isSecure = isSecureContext();
+        console.log(`🔒 보안 상태: ${isSecure ? '✅ 안전함 (HTTPS/localhost)' : '⚠️ 제한됨 (HTTP 로컬 IP)'}`);
+        console.log(`📍 접속 주소: ${window.location.protocol}//${window.location.host}`);
+        console.log(`🌐 백엔드: ${BACKEND_URL}`);
+        
+        if (!isSecure) {
             console.warn('⚠️ 비보안 컨텍스트에서 실행 중 (로컬 IP 접속)\n' +
-                        'getUserMedia는 HTTPS 또는 localhost에서만 작동합니다');
+                        'WebRTC: HTTPS 또는 localhost에서만 작동\n' +
+                        '채팅, 퀴즈는 정상 작동합니다');
+            showNotification('💡 카메라/화면공유는 HTTPS 또는 localhost에서만 작동합니다', 'info');
         }
 
-        // 로컬 스트림 초기화
-        const stream = await navigator.mediaDevices.getUserMedia({
+        // 로컬 스트림 초기화 (타임아웃 10초)
+        showNotification('카메라 접근 중...', 'info');
+        
+        const mediaPromise = navigator.mediaDevices.getUserMedia({
             video: {
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
             },
             audio: true
-        }).catch(error => {
+        });
+
+        const mediaWithTimeout = Promise.race([
+            mediaPromise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('카메라 접근 타임아웃 (10초)')), 10000)
+            )
+        ]);
+
+        const stream = await mediaWithTimeout.catch(error => {
             // ✅ 권한 오류 처리
-            const errorMsg = handleMediaError(error, 'getUserMedia');
+            const errorMsg = handleMediaError(error, 'joinRoom-getUserMedia');
             throw new Error(errorMsg);
         });
 
         state.localStream = stream;
+        console.log(`✅ 로컬 스트림 획득: ${stream.getTracks().length}개 트랙`);
 
         // 로컬 비디오 표시
         const localVideo = document.getElementById('local-video');
@@ -235,13 +254,14 @@ async function joinRoom(userName, roomId) {
         // 로컬 이름 표시
         document.getElementById('local-username').textContent = userName;
 
-        // ✅ 원격 주소 정보 표시 (디버깅용)
-        console.log(`📍 접속 주소: ${window.location.protocol}//${window.location.host}`);
-        console.log(`📌 WebRTC 테스트 가능: ${isSecureContext() ? '✅' : '❌ (HTTPS/localhost 필요)'}`);
+        // ✅ 네트워크 상태 표시
+        console.log(`📌 WebRTC 기능: ${isSecure ? '✅ 모두 사용 가능' : '❌ 카메라/화면공유만 제한'}`);
 
-        // 소켓 연결 및 방 참여
+        // 소켓 연결 및 방 참여 (타임아웃 포함)
         if (!state.socket) {
-            // ✅ 다른 네트워크 연결 안정화 옵션 적용
+            showNotification('서버 연결 중...', 'info');
+            
+            // ✅ 다른 네트워크 연결 안정화 옵션
             state.socket = io(BACKEND_URL, {
                 reconnection: true,
                 reconnectionDelay: 1000,
@@ -252,18 +272,60 @@ async function joinRoom(userName, roomId) {
                 rejectUnauthorized: false,
                 multiplex: false
             });
+
+            // ✅ 연결 이벤트 모니터링 (다른 네트워크 환경 진단용)
+            state.socket.on('connect', () => {
+                console.log(`✅ 서버 연결 성공`);
+                showNotification('서버 연결 완료', 'success');
+            });
+
+            state.socket.on('connect_error', (error) => {
+                console.error(`❌ 서버 연결 오류:`, error.message);
+                showNotification(`서버 연결 실패: ${error.message}`, 'error');
+            });
+
+            state.socket.on('disconnect', (reason) => {
+                console.warn(`⚠️  서버 연결 종료: ${reason}`);
+                if (reason === 'transport close') {
+                    showNotification('네트워크 연결이 끊어졌습니다', 'error');
+                }
+            });
         }
 
-        state.socket.emit('join-room', {
-            roomId: roomId,
-            userName: userName
+        // 방 참여 (타임아웃 5초)
+        const joinPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('방 입장 요청 타임아웃 (5초)'));
+            }, 5000);
+
+            state.socket.once('existing-users', (data) => {
+                clearTimeout(timeout);
+                resolve(data);
+            });
+
+            state.socket.emit('join-room', {
+                roomId: roomId,
+                userName: userName
+            });
         });
 
-        showNotification(`${userName}님이 회의에 입장했습니다`, 'success');
+        try {
+            await joinPromise;
+            showNotification(`${userName}님이 회의에 입장했습니다`, 'success');
+        } catch (error) {
+            console.error('❌ 방 입장 오류:', error.message);
+            showNotification(`방 입장 실패: ${error.message}`, 'error');
+            throw error;
+        }
+
     } catch (error) {
         const errorMsg = error.message || '카메라/마이크 접근 권한을 확인해주세요';
         showNotification(errorMsg, 'error');
         console.error('❌ 회의 입장 오류:', error);
+
+        // 오류 시 로그인 화면으로 복귀
+        document.getElementById('conference-container').classList.remove('active');
+        document.getElementById('login-container').classList.add('active');
     }
 }
 
@@ -357,9 +419,22 @@ function setupSocketEvents() {
 
     // 사용자가 떠남
     document.addEventListener('socket-user-left', (e) => {
-        const { userId, userName, totalUsers } = e.detail;
-        console.log(`👋 ${userName}이 퇴장했습니다`);
-        showNotification(`${userName}이 퇴장했습니다`);
+        const { userId, userName, totalUsers, reason } = e.detail;
+        
+        console.log(`👋 ${userName}이 퇴장했습니다 (사유: ${reason})`);
+        
+        // ✅ 다른 네트워크 환경에서의 퇴장 사유 표시
+        let userMessage = `${userName}이 퇴장했습니다`;
+        
+        if (reason === 'transport close' || reason === 'ping timeout') {
+            userMessage = `${userName}의 연결이 끊어졌습니다 (네트워크 오류)`;
+        } else if (reason === 'client namespace disconnect') {
+            userMessage = `${userName}이 명시적으로 연결을 끊었습니다`;
+        } else if (reason === 'server namespace disconnect') {
+            userMessage = `서버에서 ${userName}의 연결을 종료했습니다`;
+        }
+        
+        showNotification(userMessage);
         removeRemoteUser(userId);
         
         // ✅ 수정: Backend에서 보낸 totalUsers 직접 사용
@@ -875,22 +950,36 @@ function shouldInitiateOffer(remoteUserId) {
 
 async function createOffer(remoteUserId, remoteUserName, remoteUserIsInstructor = false) {
     try {
-        const peerConnection = createPeerConnection(remoteUserId, remoteUserName);
+        console.log(`📋 Offer 생성 시작: ${remoteUserName}에게 (강의자: ${remoteUserIsInstructor})`);
+        const peerConnection = createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor);
 
-        // 로컬 스트림 추가
-        console.log(`[Offer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
-        state.localStream.getTracks().forEach((track, idx) => {
-            console.log(`[Offer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
-            peerConnection.addTrack(track, state.localStream);
-        });
+        // 로컬 스트림 추가 (트랙이 있는 경우만)
+        if (state.localStream && state.localStream.getTracks().length > 0) {
+            console.log(`[Offer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
+            state.localStream.getTracks().forEach((track, idx) => {
+                console.log(`[Offer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
+                peerConnection.addTrack(track, state.localStream);
+            });
+        } else {
+            console.warn(`[Offer] 로컬 스트림이 없거나 트랙이 없습니다`);
+        }
 
-        // Offer 생성
-        const offer = await peerConnection.createOffer({
+        // ✅ Offer 생성 (타임아웃 10초)
+        const offerPromise = peerConnection.createOffer({
             offerToReceiveAudio: true,
             offerToReceiveVideo: true
         });
 
+        const offerWithTimeout = Promise.race([
+            offerPromise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Offer 생성 타임아웃')), 10000)
+            )
+        ]);
+
+        const offer = await offerWithTimeout;
         await peerConnection.setLocalDescription(offer);
+        console.log(`✅ Local Description 설정 완료`);
 
         // Offer 전송
         state.socket.emit('offer', {
@@ -901,32 +990,69 @@ async function createOffer(remoteUserId, remoteUserName, remoteUserIsInstructor 
             offer: offer
         });
 
-        console.log(`📤 Offer 전송: ${remoteUserName}에게`);
+        console.log(`📤 Offer 전송 완료: ${remoteUserName}에게`);
     } catch (error) {
-        console.error('Offer 생성 오류:', error);
+        console.error(`❌ Offer 생성 오류 (${remoteUserName}):`, error.message);
+        
+        // 구체적인 오류 메시지
+        if (error.message.includes('타임아웃')) {
+            console.error(`   원인: 네트워크 지연 또는 ICE 수집 실패`);
+        } else if (error.message.includes('InvalidStateError')) {
+            console.error(`   원인: Peer Connection 상태 오류`);
+        }
+        
+        // Peer Connection 정리
+        if (state.peerConnections[remoteUserId]) {
+            state.peerConnections[remoteUserId].close();
+            delete state.peerConnections[remoteUserId];
+        }
     }
 }
 
 async function handleOffer(remoteUserId, remoteUserName, remoteUserIsInstructor, offer) {
     try {
+        console.log(`📋 Offer 수신: ${remoteUserName}에게서 (강의자: ${remoteUserIsInstructor})`);
         let peerConnection = state.peerConnections[remoteUserId];
 
         if (!peerConnection) {
-            peerConnection = createPeerConnection(remoteUserId, remoteUserName);
-            // ✅ 수정: 양방향 스트림을 위해 track 추가 필요
-            // (Offer 받는 쪽도 자신의 스트림을 전송해야 함)
-            console.log(`[handleOffer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
-            state.localStream.getTracks().forEach((track, idx) => {
-                console.log(`[handleOffer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
-                peerConnection.addTrack(track, state.localStream);
-            });
+            peerConnection = createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor);
+            
+            // 양방향 스트림을 위해 track 추가
+            if (state.localStream && state.localStream.getTracks().length > 0) {
+                console.log(`[handleOffer] 로컬 스트림 추가 시작, track 수: ${state.localStream.getTracks().length}`);
+                state.localStream.getTracks().forEach((track, idx) => {
+                    console.log(`[handleOffer] Track ${idx}: ${track.kind} - enabled: ${track.enabled}`);
+                    peerConnection.addTrack(track, state.localStream);
+                });
+            }
         }
 
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        // ✅ Remote Description 설정 (타임아웃 10초)
+        const setRemotePromise = peerConnection.setRemoteDescription(
+            new RTCSessionDescription(offer)
+        );
 
-        // Answer 생성
-        const answer = await peerConnection.createAnswer();
+        await Promise.race([
+            setRemotePromise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Remote Description 설정 타임아웃')), 10000)
+            )
+        ]);
+
+        console.log(`✅ Remote Description 설정 완료`);
+
+        // ✅ Answer 생성 (타임아웃 10초)
+        const answerPromise = peerConnection.createAnswer();
+        const answerWithTimeout = Promise.race([
+            answerPromise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Answer 생성 타임아웃')), 10000)
+            )
+        ]);
+
+        const answer = await answerWithTimeout;
         await peerConnection.setLocalDescription(answer);
+        console.log(`✅ Answer Local Description 설정 완료`);
 
         // Answer 전송
         state.socket.emit('answer', {
@@ -935,9 +1061,21 @@ async function handleOffer(remoteUserId, remoteUserName, remoteUserIsInstructor,
             answer: answer
         });
 
-        console.log(`📥 Answer 전송: ${remoteUserName}에게`);
+        console.log(`📥 Answer 전송 완료: ${remoteUserName}에게`);
     } catch (error) {
-        console.error('Offer 처리 오류:', error);
+        console.error(`❌ Offer 처리 오류 (${remoteUserName}):`, error.message);
+        
+        if (error.message.includes('타임아웃')) {
+            console.error(`   원인: 네트워크 지연 또는 과부하`);
+        } else if (error.message.includes('InvalidStateError')) {
+            console.error(`   원인: Peer Connection 상태 불일치`);
+        }
+
+        // Peer Connection 정리
+        if (state.peerConnections[remoteUserId]) {
+            state.peerConnections[remoteUserId].close();
+            delete state.peerConnections[remoteUserId];
+        }
     }
 }
 
@@ -946,22 +1084,34 @@ async function handleAnswer(remoteUserId, answer) {
         const peerConnection = state.peerConnections[remoteUserId];
 
         if (!peerConnection) {
-            console.error('Peer connection이 존재하지 않습니다:', remoteUserId);
+            console.error('❌ Peer connection이 존재하지 않습니다:', remoteUserId);
             return;
         }
 
-        console.log(`[Answer] 현재 signaling state: ${peerConnection.signalingState}`);
+        console.log(`📋 Answer 수신: signaling state = ${peerConnection.signalingState}`);
         
         // signaling state가 "have-local-offer" 상태일 때만 Answer를 설정
         if (peerConnection.signalingState !== 'have-local-offer') {
-            console.warn(`[Answer] 잘못된 상태에서 Answer 수신. 현재 상태: ${peerConnection.signalingState}`);
+            console.warn(`⚠️  잘못된 상태에서 Answer 수신. 현재 상태: ${peerConnection.signalingState}`);
             return;
         }
 
-        await peerConnection.setRemoteDescription(answer);
-        console.log(`✅ Answer 설정됨: ${remoteUserId}`);
+        // ✅ Answer 설정 (타임아웃 10초)
+        const setAnswerPromise = peerConnection.setRemoteDescription(answer);
+        await Promise.race([
+            setAnswerPromise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Answer 설정 타임아웃')), 10000)
+            )
+        ]);
+
+        console.log(`✅ Answer 설정 완료: ${remoteUserId}`);
     } catch (error) {
-        console.error('Answer 처리 오류:', error);
+        console.error(`❌ Answer 처리 오류:`, error.message);
+        
+        if (error.message.includes('타임아웃')) {
+            console.error(`   원인: 네트워크 지연`);
+        }
     }
 }
 
@@ -970,34 +1120,108 @@ async function handleIceCandidate(remoteUserId, candidate) {
         const peerConnection = state.peerConnections[remoteUserId];
 
         if (!peerConnection) {
-            console.error('Peer connection이 존재하지 않습니다:', remoteUserId);
+            console.error('❌ Peer connection이 존재하지 않습니다:', remoteUserId);
             return;
         }
 
         if (candidate) {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            try {
+                // ✅ ICE 후보 추가 (타임아웃 5초)
+                const addCandidatePromise = peerConnection.addIceCandidate(
+                    new RTCIceCandidate(candidate)
+                );
+
+                await Promise.race([
+                    addCandidatePromise,
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('ICE 후보 추가 타임아웃')), 5000)
+                    )
+                ]);
+
+                // 후보 유형 분류 (네트워크 진단용)
+                const candidateType = candidate.candidate.split(' ')[7];
+                console.log(`✅ ICE 후보 추가됨 (${remoteUserId}): 타입=${candidateType}`);
+                
+            } catch (error) {
+                // IgnoreError는 무시 (PeerConnection이 닫혀 있을 수 있음)
+                if (error.name === 'IgnoreError') {
+                    console.log(`⏭️  ICE 후보 무시됨 (연결 상태 변화)`);
+                } else if (error.message.includes('타임아웃')) {
+                    console.warn(`⚠️  ICE 후보 추가 타임아웃 (${remoteUserId})`);
+                } else {
+                    console.error(`❌ ICE 후보 추가 실패:`, error.name, error.message);
+                }
+            }
         }
     } catch (error) {
-        console.error('ICE 후보 추가 오류:', error);
+        console.error('❌ handleIceCandidate 오류:', error);
     }
 }
 
-function createPeerConnection(remoteUserId, remoteUserName) {
+function createPeerConnection(remoteUserId, remoteUserName, remoteUserIsInstructor = false) {
     const peerConnection = new RTCPeerConnection({
         iceServers: RTCConfig.iceServers
     });
 
     state.peerConnections[remoteUserId] = peerConnection;
+    
+    // ✅ 원격 사용자 정보 초기화 (강의자 정보 포함)
+    if (!state.remoteUsers[remoteUserId]) {
+        state.remoteUsers[remoteUserId] = {
+            name: remoteUserName,
+            isInstructor: remoteUserIsInstructor,
+            stream: null,
+            videoElement: null
+        };
+    }
 
+    // ✅ ICE 수집 상태 추적 (다른 네트워크 환경 대응)
+    let iceCandidateCount = 0;
+    let iceGatheringCompleted = false;
+    
     // 로컬 ICE 후보 전송
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
+            iceCandidateCount++;
+            console.log(`🧊 ICE 후보 ${iceCandidateCount} 수집됨 (${event.candidate.candidate.substring(0, 50)}...)`);
+            
+            // ✅ 모든 네트워크 타입 (host, srflx, relay) 전송
             state.socket.emit('ice-candidate', {
                 to: remoteUserId,
                 from: state.socket.id,
                 candidate: event.candidate
             });
+        } else if (!event.candidate) {
+            iceGatheringCompleted = true;
+            console.log(`✅ ICE 수집 완료: 총 ${iceCandidateCount}개 후보`);
         }
+    };
+
+    // ✅ ICE 연결 상태 모니터링 (더 상세한 추적)
+    peerConnection.oniceconnectionstatechange = () => {
+        const state_current = peerConnection.iceConnectionState;
+        console.log(`❄️  ICE 연결 상태 (${remoteUserName}): ${state_current}`);
+        
+        switch (state_current) {
+            case 'checking':
+                console.log(`⏳ ICE 후보 검사 중 (${remoteUserName})`);
+                break;
+            case 'connected':
+            case 'completed':
+                console.log(`✅ ICE 연결 성공 (${remoteUserName})`);
+                break;
+            case 'failed':
+                console.error(`❌ ICE 연결 실패 (${remoteUserName}) - TURN 서버 확인 필요`);
+                break;
+            case 'disconnected':
+                console.warn(`⚠️  ICE 연결 끊김 (${remoteUserName}) - 재연결 시도`);
+                break;
+        }
+    };
+
+    // ✅ Signaling 상태 모니터링
+    peerConnection.onsignalingstatechange = () => {
+        console.log(`🔄 Signaling 상태 (${remoteUserName}): ${peerConnection.signalingState}`);
     };
 
     // 원격 스트림 처리
@@ -1008,13 +1232,29 @@ function createPeerConnection(remoteUserId, remoteUserName) {
         }
     };
 
-    // 연결 상태 변화
-    peerConnection.onconnectionstatechange = () => {
-        console.log(`연결 상태 (${remoteUserName}):`, peerConnection.connectionState);
+    // ✅ 데이터 채널 상태 모니터링
+    peerConnection.ondatachannel = (event) => {
+        console.log(`📡 데이터 채널 수신: ${event.channel.label}`);
+        setupDataChannel(remoteUserId, event.channel);
+    };
 
-        if (peerConnection.connectionState === 'failed' ||
-            peerConnection.connectionState === 'disconnected') {
+    // 연결 상태 변화 (최상위 상태)
+    peerConnection.onconnectionstatechange = () => {
+        console.log(`🔗 연결 상태 (${remoteUserName}):`, peerConnection.connectionState);
+
+        if (peerConnection.connectionState === 'failed') {
+            console.error(`❌ 피어 연결 실패: ${remoteUserName}`);
             removeRemoteUser(remoteUserId);
+        } else if (peerConnection.connectionState === 'disconnected') {
+            console.warn(`⚠️  피어 연결 끊김: ${remoteUserName} - 재연결 대기 중`);
+            // 몇 초 후 자동 복구 시도
+            setTimeout(() => {
+                if (state.peerConnections[remoteUserId]) {
+                    console.log(`🔄 ${remoteUserName} 재연결 시도 중...`);
+                }
+            }, 3000);
+        } else if (peerConnection.connectionState === 'connected') {
+            console.log(`✅ 피어 연결 성공: ${remoteUserName}`);
         }
     };
 
@@ -1024,15 +1264,21 @@ function createPeerConnection(remoteUserId, remoteUserName) {
 function handleRemoteStream(remoteUserId, stream, remoteUserName) {
     console.log(`[handleRemoteStream] 시작, remoteUserId: ${remoteUserId}, 스트림 트랙 수: ${stream.getTracks().length}`);
     
-    // 이미 존재하는 경우 videoElement 리셋 방지
-    if (!state.remoteUsers[remoteUserId]) {
+    // ✅ 원격 사용자 정보 업데이트 (스트림 추가)
+    if (state.remoteUsers[remoteUserId]) {
+        state.remoteUsers[remoteUserId].stream = stream;
+    } else {
+        // createPeerConnection에서 생성되지 않은 경우 (예상 밖의 상황)
         state.remoteUsers[remoteUserId] = {
             stream: stream,
             name: remoteUserName,
+            isInstructor: false,
             videoElement: null
         };
+    }
 
-        // 원격 비디오 요소 생성
+    // 원격 비디오 요소 생성
+    if (!document.getElementById(`remote-video-${remoteUserId}`)) {
         const remoteVideosContainer = document.getElementById('remote-videos-container');
         console.log(`[handleRemoteStream] remote-videos-container 존재? ${!!remoteVideosContainer}`);
         
@@ -1041,33 +1287,37 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
             return;
         }
 
-        let videoContainer = document.getElementById(`remote-video-${remoteUserId}`);
+        const videoContainer = document.createElement('div');
+        videoContainer.id = `remote-video-${remoteUserId}`;
+        videoContainer.className = 'video-tile remote';
 
-        if (!videoContainer) {
-            videoContainer = document.createElement('div');
-            videoContainer.id = `remote-video-${remoteUserId}`;
-            videoContainer.className = 'video-tile remote';
+        const video = document.createElement('video');
+        video.id = `remote-video-element-${remoteUserId}`;
+        video.autoplay = true;
+        video.playsinline = true;
+        video.muted = false;
+        video.style.width = '100%';
+        video.style.height = '100%';
 
-            const video = document.createElement('video');
-            video.id = `remote-video-element-${remoteUserId}`;
-            video.autoplay = true;
-            video.playsinline = true;
-            video.muted = false;
-            video.style.width = '100%';
-            video.style.height = '100%';
-
-            const label = document.createElement('div');
-            label.className = 'video-label';
+        // ✅ 비디오 라벨에 강의자 태그 추가
+        const label = document.createElement('div');
+        label.className = 'video-label';
+        
+        const userInfo = state.remoteUsers[remoteUserId];
+        if (userInfo && userInfo.isInstructor) {
+            label.innerHTML = `${remoteUserName} <span class="instructor-badge">강의자</span>`;
+            console.log(`👨‍🏫 강의자 라벨 추가: ${remoteUserName}`);
+        } else {
             label.textContent = remoteUserName;
-
-            videoContainer.appendChild(video);
-            videoContainer.appendChild(label);
-
-            remoteVideosContainer.appendChild(videoContainer);
-            console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}`);
-
-            state.remoteUsers[remoteUserId].videoElement = video;
         }
+
+        videoContainer.appendChild(video);
+        videoContainer.appendChild(label);
+
+        remoteVideosContainer.appendChild(videoContainer);
+        console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}`);
+
+        state.remoteUsers[remoteUserId].videoElement = video;
     }
 
     const video = state.remoteUsers[remoteUserId].videoElement;
@@ -1086,21 +1336,94 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
 }
 
 function removeRemoteUser(remoteUserId) {
-    // Peer connection 종료
-    if (state.peerConnections[remoteUserId]) {
-        state.peerConnections[remoteUserId].close();
-        delete state.peerConnections[remoteUserId];
+    try {
+        // ✅ Peer connection 종료 (다른 네트워크도 안전하게 정리)
+        if (state.peerConnections[remoteUserId]) {
+            const pc = state.peerConnections[remoteUserId];
+            
+            // 모든 sender 정리
+            try {
+                pc.getSenders().forEach(sender => {
+                    sender.track?.stop();
+                });
+            } catch (e) {
+                console.warn('Sender 정리 오류:', e.message);
+            }
+            
+            // 모든 receiver 정리
+            try {
+                pc.getReceivers().forEach(receiver => {
+                    receiver.track?.stop();
+                });
+            } catch (e) {
+                console.warn('Receiver 정리 오류:', e.message);
+            }
+            
+            // 모든 트랜시버 정리
+            try {
+                pc.getTransceivers().forEach(transceiver => {
+                    if (transceiver) {
+                        try {
+                            transceiver.stop();
+                        } catch (e) {
+                            // transceiver stop 실패는 무시
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn('Transceiver 정리 오류:', e.message);
+            }
+            
+            // 연결 종료
+            pc.close();
+            delete state.peerConnections[remoteUserId];
+            console.log(`✅ Peer connection 정리 완료: ${remoteUserId}`);
+        }
+    } catch (error) {
+        console.error(`❌ Peer connection 정리 오류: ${remoteUserId}`, error.message);
     }
 
-    // 원격 사용자 제거
-    if (state.remoteUsers[remoteUserId]) {
-        delete state.remoteUsers[remoteUserId];
+    try {
+        // 원격 스트림 정리
+        if (state.remoteUsers[remoteUserId]) {
+            const stream = state.remoteUsers[remoteUserId].stream;
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                });
+            }
+            delete state.remoteUsers[remoteUserId];
+            console.log(`✅ 원격 스트림 정리 완료: ${remoteUserId}`);
+        }
+    } catch (error) {
+        console.error(`❌ 원격 스트림 정리 오류: ${remoteUserId}`, error.message);
     }
 
-    // 비디오 요소 제거
-    const videoContainer = document.getElementById(`remote-video-${remoteUserId}`);
-    if (videoContainer) {
-        videoContainer.remove();
+    try {
+        // 비디오 요소 제거
+        const videoContainer = document.getElementById(`remote-video-${remoteUserId}`);
+        if (videoContainer) {
+            videoContainer.remove();
+            console.log(`✅ 비디오 요소 제거 완료: ${remoteUserId}`);
+        }
+    } catch (error) {
+        console.error(`❌ 비디오 요소 제거 오류: ${remoteUserId}`, error.message);
+    }
+
+    try {
+        // 데이터 채널 정리
+        if (state.dataChannels[remoteUserId]) {
+            const channels = Array.from(state.dataChannels[remoteUserId]);
+            channels.forEach(channel => {
+                if (channel && channel.readyState === 'open') {
+                    channel.close();
+                }
+            });
+            delete state.dataChannels[remoteUserId];
+            console.log(`✅ 데이터 채널 정리 완료: ${remoteUserId}`);
+        }
+    } catch (error) {
+        console.error(`❌ 데이터 채널 정리 오류: ${remoteUserId}`, error.message);
     }
 }
 

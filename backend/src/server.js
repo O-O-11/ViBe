@@ -406,32 +406,83 @@ io.on('connection', (socket) => {
   // WebRTC SDP 제안 처리
   socket.on('offer', (data) => {
     const { to, offer, from, fromName, fromIsInstructor } = data;
-    io.to(to).emit('offer', {
-      from: from,
-      fromName: fromName,
-      fromIsInstructor: fromIsInstructor,
-      offer: offer
-    });
-    console.log(`📤 Offer 전송: ${from} -> ${to}, 강의자: ${fromIsInstructor}`);
+    
+    try {
+      if (!to || !offer) {
+        console.error('❌ Offer 전송 오류: 필수 필드 누락', { to, from });
+        return;
+      }
+
+      // ✅ 다른 네트워크 사용자를 위한 상세 로깅
+      console.log(`📤 Offer 전송 시작:`);
+      console.log(`   - From: ${from} (${fromName}, 강의자: ${fromIsInstructor})`);
+      console.log(`   - To: ${to}`);
+      console.log(`   - Offer SDP 길이: ${offer.sdp ? offer.sdp.length : 0}bytes`);
+      
+      io.to(to).emit('offer', {
+        from: from,
+        fromName: fromName,
+        fromIsInstructor: fromIsInstructor,
+        offer: offer,
+        timestamp: Date.now()  // ✅ 타임스탬프 추가 (연결 지연 측정용)
+      });
+
+      console.log(`✅ Offer 전송 완료: ${from} -> ${to}`);
+    } catch (error) {
+      console.error('❌ Offer 처리 오류:', error.message);
+    }
   });
 
   // WebRTC SDP 응답 처리
   socket.on('answer', (data) => {
     const { to, answer, from } = data;
-    io.to(to).emit('answer', {
-      from: from,
-      answer: answer
-    });
-    console.log(`📥 Answer 전송: ${from} -> ${to}`);
+    
+    try {
+      if (!to || !answer) {
+        console.error('❌ Answer 전송 오류: 필수 필드 누락', { to, from });
+        return;
+      }
+
+      // ✅ 다른 네트워크 사용자를 위한 상세 로깅
+      console.log(`📥 Answer 전송 시작:`);
+      console.log(`   - From: ${from}`);
+      console.log(`   - To: ${to}`);
+      console.log(`   - Answer SDP 길이: ${answer.sdp ? answer.sdp.length : 0}bytes`);
+
+      io.to(to).emit('answer', {
+        from: from,
+        answer: answer,
+        timestamp: Date.now()  // ✅ 타임스탬프 추가
+      });
+
+      console.log(`✅ Answer 전송 완료: ${from} -> ${to}`);
+    } catch (error) {
+      console.error('❌ Answer 처리 오류:', error.message);
+    }
   });
 
-  // ICE 후보 처리
+  // ICE 후보 처리 (다른 네트워크 환경에서 중요)
   socket.on('ice-candidate', (data) => {
     const { to, candidate, from } = data;
-    io.to(to).emit('ice-candidate', {
-      from: from,
-      candidate: candidate
-    });
+    
+    try {
+      if (!to || !candidate) {
+        console.error('❌ ICE 후보 전송 오류: 필수 필드 누락', { to, from });
+        return;
+      }
+
+      // ✅ ICE 후보 유형별 로깅 (진단용)
+      const candidateType = candidate.candidate ? candidate.candidate.split(' ')[7] : 'unknown';
+      console.log(`🧊 ICE 후보 전송: ${from} -> ${to} (타입: ${candidateType})`);
+
+      io.to(to).emit('ice-candidate', {
+        from: from,
+        candidate: candidate,
+        timestamp: Date.now()  // ✅ 타임스탐프 추가
+      });
+    } catch (error) {
+      console.error('❌ ICE 후보 처리 오류:', error.message);
+    }
   });
 
   // 화면 공유 시작
@@ -663,9 +714,14 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 연결 해제
-  socket.on('disconnect', () => {
-    console.log(`❌ 사용자 연결 해제: ${socket.id}`);
+  // 연결 해제 (다양한 네트워크 환경에 대한 상세 로깅)
+  socket.on('disconnect', (reason) => {
+    console.log(`\n❌ 사용자 연결 해제:`);
+    console.log(`   - Socket ID: ${socket.id}`);
+    console.log(`   - 연결 해제 사유: ${reason}`);
+    console.log(`   - 연결된 시간: ${new Date(socket.handshake.issued).toISOString()}`);
+    console.log(`   - 클라이언트 IP: ${socket.handshake.address}`);
+    console.log(`   - User Agent: ${socket.handshake.headers['user-agent']?.substring(0, 50)}...\n`);
 
     // 모든 방에서 사용자 제거
     for (const roomId in rooms) {
@@ -693,8 +749,11 @@ io.on('connection', (socket) => {
           io.to(roomId).emit('user-left', {
             userId: socket.id,
             userName: userName,
-            totalUsers: rooms[roomId] ? rooms[roomId].users.length : 0
+            totalUsers: rooms[roomId] ? rooms[roomId].users.length : 0,
+            reason: reason  // ✅ 연결 끊김 사유 전달 (클라이언트에서 UI 업데이트용)
           });
+
+          console.log(`📊 방 ${roomId}: ${userName} 퇴장, 남은 사용자 ${rooms[roomId] ? rooms[roomId].users.length : 0}명`);
 
           // 방이 비어있으면 삭제
           if (rooms[roomId] && rooms[roomId].users.length === 0) {
