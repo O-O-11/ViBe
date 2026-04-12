@@ -958,7 +958,6 @@ body {
     border: 1px solid rgba(102, 126, 234, 0.3);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    animation: slideUp 0.4s ease-out;
 }
 
 /* 제어 바 버튼 개선 */
@@ -984,7 +983,6 @@ body {
 .control-bar.hidden {
     opacity: 0;
     visibility: hidden;
-    animation: slideDown 0.4s ease-in forwards;
 }
 
 /* 알림 */
