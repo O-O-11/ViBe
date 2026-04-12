@@ -1960,11 +1960,11 @@ function displayQuizResults(results, quizId, correctAnswer) {
             
             if (targetBtn) {
                 if (isCorrect) {
-                    targetBtn.setAttribute('style', 'background-color: #4CAF50 !important; color: white !important;');
+                    targetBtn.setAttribute('style', 'background-color: rgba(76, 175, 80, 0.5) !important; color: white !important;');
                     targetBtn.classList.remove('selected'); // 기존 선택 스타일 제거
                     console.log('✅ 정답 버튼 초록색으로 표시');
                 } else {
-                    targetBtn.setAttribute('style', 'background-color: #f44336 !important; color: white !important;');
+                    targetBtn.setAttribute('style', 'background-color: rgba(244, 67, 54, 0.5) !important; color: white !important;');
                     targetBtn.classList.remove('selected'); // 기존 선택 스타일 제거
                     console.log('❌ 오답 버튼 빨간색으로 표시');
                 }
@@ -2065,10 +2065,10 @@ X: ${xCount}명 (${xPercentage}%)
             
             if (targetBtn) {
                 if (isCorrect) {
-                    targetBtn.setAttribute('style', 'background-color: #4CAF50 !important; color: white !important;');
+                    targetBtn.setAttribute('style', 'background-color: rgba(76, 175, 80, 0.5) !important; color: white !important;');
                     console.log('✅ 정답 버튼 초록색으로 표시 (결과 버튼)');
                 } else {
-                    targetBtn.setAttribute('style', 'background-color: #f44336 !important; color: white !important;');
+                    targetBtn.setAttribute('style', 'background-color: rgba(244, 67, 54, 0.5) !important; color: white !important;');
                     console.log('❌ 오답 버튼 빨간색으로 표시 (결과 버튼)');
                 }
                 
