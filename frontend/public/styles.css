@@ -341,12 +341,12 @@ body {
 .control-btn.large {
     width: 80px;
     height: 80px;
-    font-size: 32px;
+    font-size: 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .control-btn.danger {
@@ -358,7 +358,7 @@ body {
 }
 
 .control-btn .label {
-    font-size: 19px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -881,7 +881,7 @@ body {
 /* 제어 바 토글 버튼 */
 .control-bar-toggle {
     position: absolute;
-    bottom: 75px;
+    bottom: 105px;
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -896,7 +896,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
@@ -914,7 +914,7 @@ body {
 
 /* 토글 버튼 숨김 상태 */
 .control-bar-toggle.hidden {
-    bottom: 10px;
+    bottom: 40px;
 }
 
 /* 슬라이드 애니메이션 */
