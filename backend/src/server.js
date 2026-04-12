@@ -535,17 +535,36 @@ io.on('connection', (socket) => {
     socket.leave(roomId);
 
     if (rooms[roomId]) {
+      const isInstructor = rooms[roomId].instructorId === socket.id;
+      
       rooms[roomId].users = rooms[roomId].users.filter(u => u.id !== socket.id);
 
-      socket.broadcast.to(roomId).emit('user-left', {
-        userId: socket.id,
-        userName: userName,
-        totalUsers: rooms[roomId].users.length
-      });
-
-      // 방이 비워지면 삭제
-      if (rooms[roomId].users.length === 0) {
+      if (isInstructor) {
+        // ✅ 강의자가 나가면 방 폐쇄
+        io.to(roomId).emit('room-closed', {
+          reason: '강의자가 나갔습니다',
+          message: `강의자 "${userName}"이 나갔습니다. 방이 폐쇄되고 모든 참여자가 강제 퇴장됩니다.`
+        });
+        
+        console.log(`🔴 [강의자 퇴장] 방 폐쇄: ${roomId} (강의자: ${userName})`);
+        
+        // ✅ 방 삭제
         delete rooms[roomId];
+      } else {
+        // ✅ 강의자가 아니면 일반 퇴장 이벤트
+        socket.broadcast.to(roomId).emit('user-left', {
+          userId: socket.id,
+          userName: userName,
+          totalUsers: rooms[roomId].users.length
+        });
+
+        console.log(`📊 방 ${roomId}: ${userName} 퇴장, 남은 사용자 ${rooms[roomId] ? rooms[roomId].users.length : 0}명`);
+
+        // 방이 비워지면 삭제
+        if (rooms[roomId].users.length === 0) {
+          console.log(`🗑️ 방 삭제 (모두 나감): ${roomId}`);
+          delete rooms[roomId];
+        }
       }
     }
 
