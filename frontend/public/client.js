@@ -297,7 +297,13 @@ function setupSocketEvents() {
         const { userId, oldName, newName } = e.detail;
         console.log(`✏️ ${oldName}이 ${newName}으로 이름 변경`);
         
-        // 참여자 목록에서 해당 사용자의 이름 업데이트
+        // 1️⃣ state 객체 업데이트
+        state.userNames[userId] = newName;
+        if (state.remoteUsers[userId]) {
+            state.remoteUsers[userId].name = newName;
+        }
+        
+        // 2️⃣ 참여자 목록에서 해당 사용자의 이름 업데이트
         const participantEl = document.getElementById(`participant-${userId}`);
         if (participantEl) {
             const nameContainer = participantEl.querySelector('.participant-name-container');
@@ -308,6 +314,16 @@ function setupSocketEvents() {
                 if (badge) {
                     nameContainer.appendChild(badge.cloneNode(true));
                 }
+            }
+        }
+        
+        // 3️⃣ 비디오 라벨 업데이트
+        const videoContainer = document.getElementById(`remote-video-${userId}`);
+        if (videoContainer) {
+            const label = videoContainer.querySelector('.video-label');
+            if (label) {
+                label.textContent = newName;
+                console.log(`✏️ 비디오 라벨 업데이트: ${userId} → ${newName}`);
             }
         }
     });

@@ -127,14 +127,40 @@ app.post('/api/refine-question', async (req, res) => {
       }
     });
 
+    // ✅ 응답 유효성 체크
+    if (!response.data || !response.data.choices || !response.data.choices[0]) {
+      console.error('❌ OpenAI 응답 형식 오류:', response.data);
+      return res.status(500).json({ 
+        error: 'OpenAI 응답 형식 오류',
+        details: 'choices 배열이 없습니다'
+      });
+    }
+
     const refinedQuestion = response.data.choices[0].message.content.trim();
+    console.log(`✅ 질문 다듬기 성공: "${question}" → "${refinedQuestion}"`);
     res.json({ refinedQuestion });
 
   } catch (error) {
-    console.error('질문 다듬기 API 오류:', error.response?.data || error.message);
+    console.error('❌ 질문 다듬기 API 오류:');
+    console.error('   - 에러 메시지:', error.message);
+    console.error('   - 에러 코드:', error.code);
+    
+    // OpenAI API 에러
+    if (error.response) {
+      console.error('   - API 상태 코드:', error.response.status);
+      console.error('   - API 응답:', error.response.data);
+    }
+    
+    // axios 요청 오류
+    if (error.request && !error.response) {
+      console.error('   - 요청 전송됨, 응답 없음');
+      console.error('   - URL:', error.request.url || 'N/A');
+    }
+    
     res.status(500).json({ 
       error: '질문 다듬기 중 오류가 발생했습니다',
-      details: error.response?.data?.error?.message || error.message
+      details: error.response?.data?.error?.message || error.message,
+      type: error.response ? 'OpenAI API 오류' : 'Network 오류'
     });
   }
 });
