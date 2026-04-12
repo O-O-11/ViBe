@@ -2296,11 +2296,13 @@ function toggleControlBar() {
     if (state.isControlBarVisible) {
         // 패널 표시
         controlBar.classList.remove('hidden');
+        toggleBtn.classList.remove('hidden');
         toggleBtn.textContent = '🔽';
         toggleBtn.title = '제어 바 숨김';
     } else {
         // 패널 숨김
         controlBar.classList.add('hidden');
+        toggleBtn.classList.add('hidden');
         toggleBtn.textContent = '🔼';
         toggleBtn.title = '제어 바 표시';
     }

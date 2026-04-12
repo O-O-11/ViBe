@@ -881,7 +881,7 @@ body {
 /* 제어 바 토글 버튼 */
 .control-bar-toggle {
     position: absolute;
-    bottom: 240px;
+    bottom: 75px;
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -910,6 +910,11 @@ body {
 
 .control-bar-toggle:active {
     transform: translateX(-50%) scale(0.95);
+}
+
+/* 토글 버튼 숨김 상태 */
+.control-bar-toggle.hidden {
+    bottom: 10px;
 }
 
 /* 슬라이드 애니메이션 */
