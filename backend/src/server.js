@@ -506,23 +506,27 @@ io.on('connection', (socket) => {
 
   // 채팅 메시지
   socket.on('send-message', (data) => {
-    const { roomId, message, userName, imageData } = data;
+    const { roomId, message, userName, timestamp, imageData } = data;
     
     // 서버에서 직접 강의자 여부 확인
     const room = rooms[roomId];
     const isInstructor = room && room.instructorId === socket.id;
     
-    console.log(`[채팅 디버그] roomId: ${roomId}, socketId: ${socket.id}, instructorId: ${room?.instructorId}, isInstructor: ${isInstructor}`);
+    // ✅ 클라이언트 타임스탬프 사용, 없으면 서버 시간 사용
+    const messageTimestamp = timestamp || Date.now();
+    
+    console.log(`[채팅 디버그] roomId: ${roomId}, socketId: ${socket.id}, instructorId: ${room?.instructorId}, isInstructor: ${isInstructor}, timestamp: ${messageTimestamp}`);
     
     io.to(roomId).emit('receive-message', {
       userId: socket.id,
       userName: userName,
       message: message,
-      timestamp: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+      timestamp: messageTimestamp,  // ✅ 밀리초 숫자로 전송
       isInstructor: isInstructor,
       imageData: imageData
     });
     console.log(`💬 메시지: ${userName} - ${message}${isInstructor ? ' [강의자]' : ''}${imageData ? ' [이미지]' : ''}`);
+  });
   });
 
   // 방에서 나가기
@@ -735,14 +739,17 @@ io.on('connection', (socket) => {
         // ✅ 강의자가 나가면 즉시 방 폐쇄
         if (isInstructor) {
           console.log(`🔴 [강의자 퇴장] 방 폐쇄: ${roomId} (강의자: ${userName})`);
+          console.log(`   - 강제 퇴장 대상: ${rooms[roomId].users.length}명`);
           
-          // 남아있는 학생들에게 방 폐쇄 알림
+          // ✅ 남아있는 모든 학생들에게 방 폐쇄 알림
           io.to(roomId).emit('room-closed', {
             reason: '강의자가 나갔습니다',
-            message: `강의자 "${userName}"이 나갔습니다. 방이 폐쇄됩니다.`
+            message: `강의자 "${userName}"이 나갔습니다. 방이 폐쇄되고 모든 참여자가 강제 퇴장됩니다.`
           });
           
-          // 방 삭제
+          console.log(`✅ 방 ${roomId}의 모든 참여자에게 강제 퇴장 신호 전송 완료`);
+          
+          // ✅ 방 삭제
           delete rooms[roomId];
         } else {
           // 강의자가 아닌 경우: 일반 user-left 이벤트 전송

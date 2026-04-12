@@ -607,14 +607,13 @@ function initializeSocket() {
     // ✅ 강의자가 나갔을 때 - 방 폐쇄
     state.socket.on('room-closed', (data) => {
         console.log('🔴 [방 폐쇄] 강의자가 나갔습니다');
-        const { message } = data;
+        const { message, reason } = data;
         
         showNotification(message || '강의자가 나갔습니다. 방이 폐쇄됩니다.', 'error');
         
-        // 2초 후 로그인 화면으로 돌아가기
-        setTimeout(() => {
-            leaveConference();
-        }, 2000);
+        // ✅ 강제 퇴장 (confirm 없이 즉시 실행)
+        console.log('🛑 강제 퇴장 진행 중...');
+        forceLeaveConference(reason || '강의자가 나갔습니다');
     });
 
     // 사용자 이름 변경
@@ -1696,6 +1695,7 @@ function sendChatMessage() {
         message: message,
         userName: state.userName,
         isInstructor: state.isInstructor,
+        timestamp: Date.now(),  // ✅ 타임스탬프 추가 (밀리초 단위 숫자)
         imageData: selectedImageData
     });
 
@@ -1748,10 +1748,26 @@ function addChatMessage(userId, userName, message, timestamp, isInstructor = fal
         messageEl.appendChild(imageEl);
     }
 
-    // ✅ 수정: timestamp를 포맷하여 시간 표시
+    // ✅ 수정: timestamp 유효성 검사 및 포맷
     const time = document.createElement('div');
     time.className = 'chat-message-time';
-    const timeString = new Date(timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    
+    let timeString = '시간 미지정';
+    
+    // timestamp가 숫자인지 확인 (Date.now()의 결과)
+    if (typeof timestamp === 'number' && timestamp > 0) {
+        timeString = new Date(timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    } else if (typeof timestamp === 'string' && timestamp.length > 0) {
+        // 백엔드에서 이미 포맷된 시간이 오는 경우 (호환성)
+        timeString = timestamp;
+    } else if (timestamp instanceof Date && !isNaN(timestamp)) {
+        timeString = timestamp.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    } else {
+        console.warn(`⚠️ 유효하지 않은 timestamp: ${timestamp} (타입: ${typeof timestamp})`);
+        // 시간 없이 진행
+        timeString = '';
+    }
+    
     time.textContent = timeString;
 
     messageEl.appendChild(header);
@@ -2073,45 +2089,110 @@ function fallbackCopyToClipboard(text, btn) {
 }
 
 // ========== 회의 종료 ==========
+// ========== 방 떠나기 ==========
+// ✅ 일반 퇴장 (사용자가 버튼 클릭 시 - 확인창 포함)
 function leaveConference() {
     if (!confirm('회의를 종료하시겠습니까?')) return;
 
+    // 강제 퇴장과 동일한 처리
+    forceLeaveConference('사용자가 방을 나갔습니다');
+}
+
+// ✅ 강제 퇴장 (강의자 퇴장 시 - 확인창 없음)
+function forceLeaveConference(reason = '방이 폐쇄되었습니다') {
+    console.log(`🛑 강제 퇴장 시작: ${reason}`);
+
     // 화면 공유 중지
     if (state.isScreenSharing) {
-        stopScreenShare();
+        try {
+            stopScreenShare();
+        } catch (error) {
+            console.warn('화면 공유 중지 중 오류:', error.message);
+        }
     }
 
-    // 모든 Peer connection 종료
-    Object.values(state.peerConnections).forEach(pc => {
-        pc.close();
-    });
-    state.peerConnections = {};
+    // ✅ 모든 Peer connection 종료 (개선된 정리)
+    try {
+        for (const remoteUserId in state.peerConnections) {
+            const pc = state.peerConnections[remoteUserId];
+            if (pc) {
+                try {
+                    // Sender 정리
+                    pc.getSenders().forEach(sender => {
+                        try {
+                            sender.track?.stop();
+                        } catch (e) {
+                            // 무시
+                        }
+                    });
+
+                    // Receiver 정리
+                    pc.getReceivers().forEach(receiver => {
+                        try {
+                            receiver.track?.stop();
+                        } catch (e) {
+                            // 무시
+                        }
+                    });
+
+                    // 연결 종료
+                    pc.close();
+                } catch (error) {
+                    console.warn(`Peer ${remoteUserId} 정리 중 오류:`, error.message);
+                }
+            }
+        }
+        state.peerConnections = {};
+    } catch (error) {
+        console.error('Peer connection 정리 중 오류:', error);
+    }
 
     // 로컬 스트림 종료
     if (state.localStream) {
-        state.localStream.getTracks().forEach(track => track.stop());
+        try {
+            state.localStream.getTracks().forEach(track => track.stop());
+        } catch (error) {
+            console.warn('로컬 스트림 정리 중 오류:', error.message);
+        }
         state.localStream = null;
     }
 
-    // 서버에 방 나가기 알림
-    if (state.socket) {
-        state.socket.emit('leave-room', {
-            roomId: state.roomId,
-            userName: state.userName
-        });
+    // ✅ 서버에 방 나가기 알림 (비동기 처리)
+    if (state.socket && state.socket.connected) {
+        try {
+            state.socket.emit('leave-room', {
+                roomId: state.roomId,
+                userName: state.userName,
+                reason: reason
+            });
+            console.log('✅ 서버에 퇴장 알림 전송');
+        } catch (error) {
+            console.warn('서버 알림 전송 중 오류:', error.message);
+        }
     }
 
-    // 로그인 화면으로 전환
-    document.getElementById('conference-container').classList.remove('active');
-    document.getElementById('login-container').classList.add('active');
+    // 연결 상태 초기화
+    state.roomId = null;
+    state.userName = null;
+    state.isInstructor = false;
 
-    // 폼 초기화
-    document.getElementById('chat-messages').innerHTML = '';
-    document.getElementById('participants-list').innerHTML = '';
-    document.getElementById('remote-videos-container').innerHTML = '';
-    document.getElementById('room-info').style.display = 'none';
+    // ✅ UI 정리 (즉시 실행)
+    try {
+        document.getElementById('conference-container').classList.remove('active');
+        document.getElementById('login-container').classList.add('active');
 
-    showNotification('회의가 종료되었습니다');
+        // 폼 초기화
+        document.getElementById('chat-messages').innerHTML = '';
+        document.getElementById('participants-list').innerHTML = '';
+        document.getElementById('remote-videos-container').innerHTML = '';
+        document.getElementById('room-info').style.display = 'none';
+        
+        console.log('✅ UI 정리 완료');
+    } catch (error) {
+        console.error('UI 정리 중 오류:', error.message);
+    }
+
+    showNotification(reason || '회의가 종료되었습니다');
 }
 
 // ========== 알림 ==========
@@ -2626,7 +2707,16 @@ function addQuizToHistory(quizEntry) {
     }
 
     const { quizId, question, correctAnswer, timestamp, quizNumber = '?', oCount = 0, xCount = 0 } = quizEntry;
-    const timeString = new Date(timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    
+    // ✅ timestamp 유효성 검사
+    let timeString = '시간 미지정';
+    if (typeof timestamp === 'number' && timestamp > 0) {
+        timeString = new Date(timestamp).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' });
+    } else if (typeof timestamp === 'string' && timestamp.length > 0) {
+        timeString = timestamp;
+    } else {
+        console.warn(`⚠️ 퀴즈 시간 정보 오류: ${timestamp} (타입: ${typeof timestamp})`);
+    }
     
     const quizItem = document.createElement('div');
     quizItem.className = 'quiz-history-item';
