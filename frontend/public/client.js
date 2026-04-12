@@ -423,9 +423,6 @@ function setupSocketEvents() {
         // 자신을 참여자 목록에 먼저 추가
         addParticipantToList(state.socket.id, state.userName, state.isInstructor, state.isVideoEnabled, state.isAudioEnabled);
         
-        // ✅ 로컬 비디오 위에 초기 미디어 아이콘 표시
-        updateLocalMediaIcons(state.isVideoEnabled, state.isAudioEnabled);
-        
         // 기존 사용자 추가 및 Offer 생성
         users.forEach(user => {
             // ✅ 사용자의 미디어 상태 전달 (기본값: 켜짐)
@@ -1554,9 +1551,6 @@ function toggleVideo() {
 
     showNotification(`카메라 ${state.isVideoEnabled ? '켜짐' : '꺼짐'}`);
     
-    // ✅ 로컬 비디오도 업데이트
-    updateLocalMediaIcons(state.isVideoEnabled, state.isAudioEnabled);
-    
     // ✅ 모든 사용자에게 상태 변경 알림
     state.socket.emit('user-media-state-change', {
         roomId: state.roomId,
@@ -1578,9 +1572,6 @@ function toggleAudio() {
     btn.classList.toggle('off', !state.isAudioEnabled);
     
     showNotification(`마이크 ${state.isAudioEnabled ? '켜짐' : '꺼짐'}`);
-    
-    // ✅ 로컬 비디오도 업데이트
-    updateLocalMediaIcons(state.isVideoEnabled, state.isAudioEnabled);
     
     // ✅ 모든 사용자에게 상태 변경 알림
     state.socket.emit('user-media-state-change', {
@@ -2021,7 +2012,7 @@ function addParticipantToList(userId, userName, isInstructor = false, isVideoEna
         participantEl.id = `participant-${userId}`;
         participantEl.className = 'participant-item';
         
-        // 참여자 이름 + 강의자 배지 + 미디어 상태
+        // 참여자 이름 + 강의자 배지
         const nameContainer = document.createElement('div');
         nameContainer.className = 'participant-name-container';
         nameContainer.textContent = userName;
@@ -2033,16 +2024,7 @@ function addParticipantToList(userId, userName, isInstructor = false, isVideoEna
             nameContainer.appendChild(badge);
         }
         
-        // ✅ 마이크/카메라 상태 표시 아이콘
-        const mediaStateContainer = document.createElement('div');
-        mediaStateContainer.className = 'media-state-container';
-        mediaStateContainer.id = `media-state-${userId}`;
-        nameContainer.appendChild(mediaStateContainer);
-        
         participantEl.appendChild(nameContainer);
-        
-        // ✅ 초기 미디어 상태 설정
-        updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEnabled);
 
         // ✅ 추가: 강의자에게만 출석 상태 버튼 표시
         if (state.isInstructor && !isInstructor) {
