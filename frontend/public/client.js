@@ -371,7 +371,7 @@ function setupSocketEvents() {
     
     // 다른 사용자가 입장했을 때
     document.addEventListener('socket-user-joined', (e) => {
-        const { userId, userName, isInstructor, totalUsers } = e.detail;
+        const { userId, userName, isInstructor, isVideoEnabled = true, isAudioEnabled = true, totalUsers } = e.detail;
         console.log(`✅ ${userName}이 입장했습니다`);
         showNotification(`${userName}이 입장했습니다`);
         
@@ -382,7 +382,14 @@ function setupSocketEvents() {
             updateParticipantCount();
         }
         
-        addParticipantToList(userId, userName, isInstructor);
+        addParticipantToList(userId, userName, isInstructor, isVideoEnabled, isAudioEnabled);
+
+        // ✅ 새로운 사용자의 미디어 상태를 state.remoteUsers에 저장
+        if (!state.remoteUsers[userId]) {
+            state.remoteUsers[userId] = {};
+        }
+        state.remoteUsers[userId].isVideoEnabled = isVideoEnabled;
+        state.remoteUsers[userId].isAudioEnabled = isAudioEnabled;
 
         // ✅ 수정: 여기서는 offer를 보내지 않음
         // 새로 들어온 사람(userId)이 기존 사용자들(우리)에게 offer를 보낼 것을 기다림
@@ -1420,15 +1427,14 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
 
         state.remoteUsers[remoteUserId].videoElement = video;
         
-        // ✅ 초기 미디어 상태 아이콘 설정
-        if (userInfo && (userInfo.isVideoEnabled !== undefined || userInfo.isAudioEnabled !== undefined)) {
-            updateRemoteVideoMediaStateNew(
-                remoteUserId, 
-                userInfo.isVideoEnabled !== undefined ? userInfo.isVideoEnabled : true,
-                userInfo.isAudioEnabled !== undefined ? userInfo.isAudioEnabled : true
-            );
-            console.log(`[handleRemoteStream] 초기 미디어 아이콘 설정: ${remoteUserId}`);
-        }
+        // ✅ 초기 미디어 상태 아이콘 설정 (항상 표시, 미디어 상태 없으면 기본값 사용)
+        const mediaState = userInfo || {};
+        updateRemoteVideoMediaStateNew(
+            remoteUserId, 
+            mediaState.isVideoEnabled !== undefined ? mediaState.isVideoEnabled : true,
+            mediaState.isAudioEnabled !== undefined ? mediaState.isAudioEnabled : true
+        );
+        console.log(`[handleRemoteStream] 초기 미디어 아이콘 설정: ${remoteUserId}`);
     }
 
     const video = state.remoteUsers[remoteUserId].videoElement;

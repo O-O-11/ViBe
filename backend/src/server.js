@@ -332,6 +332,8 @@ io.on('connection', (socket) => {
       userId: socket.id,
       userName: userName,
       isInstructor: rooms[roomId].instructorId === socket.id,
+      isVideoEnabled: true,  // ✅ 미디어 상태 추가
+      isAudioEnabled: true,  // ✅ 미디어 상태 추가
       totalUsers: rooms[roomId].users.length
     });
 
