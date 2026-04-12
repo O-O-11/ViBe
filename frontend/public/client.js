@@ -528,6 +528,15 @@ function setupSocketEvents() {
         const { userId, userName } = e.detail;
         showNotification(`${userName}님이 화면을 공유하고 있습니다`);
         state.currentScreenShareUserId = userId;
+        
+        // ✅ 자신이 아닌 다른 사람이 화면공유 시작했으면 버튼 비활성화
+        const screenShareBtn = document.getElementById('screen-share-btn');
+        if (userId !== state.socket.id && screenShareBtn) {
+            screenShareBtn.disabled = true;
+            screenShareBtn.style.opacity = '0.5';
+            screenShareBtn.title = '다른 사용자가 화면을 공유 중입니다';
+        }
+        
         handleScreenShareStart(userId, userName);
     });
 
@@ -535,6 +544,15 @@ function setupSocketEvents() {
     document.addEventListener('socket-screen-share-stop', (e) => {
         const { userId } = e.detail;
         state.currentScreenShareUserId = null;
+        
+        // ✅ 버튼 활성화
+        const screenShareBtn = document.getElementById('screen-share-btn');
+        if (screenShareBtn) {
+            screenShareBtn.disabled = false;
+            screenShareBtn.style.opacity = '1';
+            screenShareBtn.title = '화면 공유';
+        }
+        
         handleScreenShareEnd(userId);
     });
 
@@ -1506,6 +1524,12 @@ function toggleAudio() {
 
 // ========== 화면 공유 ==========
 async function toggleScreenShare() {
+    // ✅ 다른 사람이 화면공유 중이면 실행 거부
+    if (state.currentScreenShareUserId && state.currentScreenShareUserId !== state.socket.id) {
+        showNotification('이미 다른 사람이 화면을 공유 중입니다', 'warning');
+        return;
+    }
+
     if (state.isScreenSharing) {
         stopScreenShare();
     } else {
@@ -1535,6 +1559,7 @@ async function startScreenShare() {
 
         state.screenStream = screenStream;
         state.isScreenSharing = true;
+        state.currentScreenShareUserId = state.socket.id;  // ✅ 자신의 ID로 설정
         
         console.log(`🖥️ 화면 공유 시작: ${screenStream.getTracks().length}개 트랙`);
 
@@ -1601,6 +1626,7 @@ async function stopScreenShare() {
     }
 
     state.isScreenSharing = false;
+    state.currentScreenShareUserId = null;  // ✅ 화면공유 사용자 초기화
 
     // ✅ 원본 카메라 스트림으로 복구 (개선된 버전)
     try {
