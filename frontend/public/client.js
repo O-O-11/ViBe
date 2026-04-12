@@ -676,6 +676,12 @@ function initializeSocket() {
         document.dispatchEvent(event);
     });
 
+    // ✅ 사용자 미디어 상태 변경 (마이크/카메라)
+    state.socket.on('user-media-state-changed', (data) => {
+        const { userId, userName, isVideoEnabled, isAudioEnabled } = data;
+        updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEnabled);
+    });
+
     // 화면 공유 시작
     state.socket.on('user-started-screen-share', (data) => {
         const { userId, userName } = data;
@@ -1505,8 +1511,16 @@ function toggleVideo() {
     const btn = document.getElementById('toggle-video-btn');
     btn.classList.toggle('off', !state.isVideoEnabled);
 
-    const status = state.isVideoEnabled ? '켜기' : '끄기';
     showNotification(`카메라 ${state.isVideoEnabled ? '켜짐' : '꺼짐'}`);
+    
+    // ✅ 모든 사용자에게 상태 변경 알림
+    state.socket.emit('user-media-state-change', {
+        roomId: state.roomId,
+        userId: state.socket.id,
+        userName: state.userName,
+        isVideoEnabled: state.isVideoEnabled,
+        isAudioEnabled: state.isAudioEnabled
+    });
 }
 
 function toggleAudio() {
@@ -1518,6 +1532,18 @@ function toggleAudio() {
 
     const btn = document.getElementById('toggle-audio-btn');
     btn.classList.toggle('off', !state.isAudioEnabled);
+    
+    showNotification(`마이크 ${state.isAudioEnabled ? '켜짐' : '꺼짐'}`);
+    
+    // ✅ 모든 사용자에게 상태 변경 알림
+    state.socket.emit('user-media-state-change', {
+        roomId: state.roomId,
+        userId: state.socket.id,
+        userName: state.userName,
+        isVideoEnabled: state.isVideoEnabled,
+        isAudioEnabled: state.isAudioEnabled
+    });
+}
 
     showNotification(`마이크 ${state.isAudioEnabled ? '켜짐' : '꺼짐'}`);
 }
@@ -1951,7 +1977,7 @@ function addParticipantToList(userId, userName, isInstructor = false) {
         participantEl.id = `participant-${userId}`;
         participantEl.className = 'participant-item';
         
-        // 참여자 이름 + 강의자 배지
+        // 참여자 이름 + 강의자 배지 + 미디어 상태
         const nameContainer = document.createElement('div');
         nameContainer.className = 'participant-name-container';
         nameContainer.textContent = userName;
@@ -1962,6 +1988,12 @@ function addParticipantToList(userId, userName, isInstructor = false) {
             badge.textContent = '강의자';
             nameContainer.appendChild(badge);
         }
+        
+        // ✅ 마이크/카메라 상태 표시 아이콘
+        const mediaStateContainer = document.createElement('div');
+        mediaStateContainer.className = 'media-state-container';
+        mediaStateContainer.id = `media-state-${userId}`;
+        nameContainer.appendChild(mediaStateContainer);
         
         participantEl.appendChild(nameContainer);
 
@@ -2328,7 +2360,37 @@ function toggleControlBar() {
     }
 }
 
-// ========== 질문 다듬기 (백엔드 API 호출) ==========
+// ✅ 사용자 미디어 상태 업데이트
+function updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEnabled) {
+    const mediaStateContainer = document.getElementById(`media-state-${userId}`);
+    
+    if (!mediaStateContainer) {
+        console.warn(`미디어 상태 컨테이너 없음: ${userId}`);
+        return;
+    }
+    
+    // 기존 상태 아이콘 제거
+    mediaStateContainer.innerHTML = '';
+    
+    // 카메라 상태 아이콘
+    const cameraIcon = document.createElement('span');
+    cameraIcon.className = 'media-icon camera-icon';
+    cameraIcon.title = isVideoEnabled ? '카메라 켜짐' : '카메라 꺼짐';
+    cameraIcon.textContent = isVideoEnabled ? '📷' : '📷‍🚫';
+    cameraIcon.style.opacity = isVideoEnabled ? '1' : '0.5';
+    
+    // 마이크 상태 아이콘
+    const micIcon = document.createElement('span');
+    micIcon.className = 'media-icon mic-icon';
+    micIcon.title = isAudioEnabled ? '마이크 켜짐' : '마이크 꺼짐';
+    micIcon.textContent = isAudioEnabled ? '🎤' : '🔇';
+    micIcon.style.opacity = isAudioEnabled ? '1' : '0.5';
+    
+    mediaStateContainer.appendChild(cameraIcon);
+    mediaStateContainer.appendChild(micIcon);
+    
+    console.log(`📡 ${userName}의 미디어 상태 업데이트: 카메라=${isVideoEnabled}, 마이크=${isAudioEnabled}`);
+}
 async function refineQuestion() {
     const question = document.getElementById('chat-message-input').value.trim();
     

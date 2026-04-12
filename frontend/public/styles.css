@@ -537,6 +537,28 @@ body {
     justify-content: flex-start;
 }
 
+/* ✅ 마이크/카메라 상태 아이콘 */
+.media-state-container {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.media-icon {
+    font-size: 20px;
+    transition: opacity 0.3s ease;
+}
+
+.camera-icon {
+    cursor: default;
+    title: "카메라 상태";
+}
+
+.mic-icon {
+    cursor: default;
+    title: "마이크 상태";
+}
+
 .attendance-buttons {
     display: flex;
     gap: 6px;

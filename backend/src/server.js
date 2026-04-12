@@ -652,6 +652,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ✅ 사용자 미디어 상태 변경 (마이크/카메라)
+  socket.on('user-media-state-change', (data) => {
+    const { roomId, userId, userName, isVideoEnabled, isAudioEnabled } = data;
+    
+    console.log(`📱 ${userName}의 미디어 상태 변경: 카메라=${isVideoEnabled}, 마이크=${isAudioEnabled}`);
+    
+    // 같은 방의 모든 사용자에게 알림
+    io.to(roomId).emit('user-media-state-changed', {
+      userId: userId,
+      userName: userName,
+      isVideoEnabled: isVideoEnabled,
+      isAudioEnabled: isAudioEnabled
+    });
+  });
+
   // ❓ 퀴즈 출제 (quiz-created 이벤트)
   socket.on('quiz-created', (data) => {
     const { roomId, question, correctAnswer, quizId } = data;
