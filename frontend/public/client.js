@@ -1545,9 +1545,6 @@ function toggleAudio() {
     });
 }
 
-    showNotification(`마이크 ${state.isAudioEnabled ? '켜짐' : '꺼짐'}`);
-}
-
 // ========== 화면 공유 ==========
 async function toggleScreenShare() {
     // ✅ 다른 사람이 화면공유 중이면 실행 거부
