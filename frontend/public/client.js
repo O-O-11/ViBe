@@ -1952,6 +1952,33 @@ function addChatMessage(userId, userName, message, timestamp, isInstructor = fal
 
     messagesContainer.appendChild(messageEl);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // ✅ 채팅 탭이 활성화되지 않았으면 배지 표시
+    const chatTabBtn = document.querySelector('.tab-btn[data-tab="chat"]');
+    const chatTab = document.getElementById('chat-tab');
+    
+    if (chatTabBtn && chatTab && !chatTab.classList.contains('active')) {
+        // 배지가 없으면 생성
+        if (!chatTabBtn.querySelector('.notification-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'notification-badge';
+            badge.textContent = '●';
+            chatTabBtn.style.position = 'relative';
+            chatTabBtn.appendChild(badge);
+        }
+    }
+    
+    // 아래 패널 채팅 아이콘에도 배지 표시
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+    if (toggleSidebarBtn && chatTab && !chatTab.classList.contains('active')) {
+        if (!toggleSidebarBtn.querySelector('.notification-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'notification-badge';
+            badge.textContent = '●';
+            toggleSidebarBtn.style.position = 'relative';
+            toggleSidebarBtn.appendChild(badge);
+        }
+    }
 }
 
 // ✅ 파일 선택 처리 (네트워크 최적화)
@@ -2160,6 +2187,18 @@ function switchTab(e) {
 
     e.target.classList.add('active');
     tabElement.classList.add('active');
+    
+    // ✅ 채팅 탭 클릭 시 배지 제거
+    if (tabName === 'chat') {
+        // 탭 버튼에서 배지 제거
+        const badge = e.target.querySelector('.notification-badge');
+        if (badge) badge.remove();
+        
+        // 토글 버튼에서 배지 제거
+        const toggleBtn = document.getElementById('toggle-sidebar-btn');
+        const toggleBadge = toggleBtn?.querySelector('.notification-badge');
+        if (toggleBadge) toggleBadge.remove();
+    }
 }
 
 // ✅ 익명화 버튼 클릭시
