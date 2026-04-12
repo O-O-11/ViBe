@@ -421,11 +421,22 @@ function setupSocketEvents() {
         document.getElementById('participant-count').textContent = total;
         
         // 자신을 참여자 목록에 먼저 추가
-        addParticipantToList(state.socket.id, state.userName, state.isInstructor);
+        addParticipantToList(state.socket.id, state.userName, state.isInstructor, state.isVideoEnabled, state.isAudioEnabled);
         
         // 기존 사용자 추가 및 Offer 생성
         users.forEach(user => {
-            addParticipantToList(user.id, user.name, user.isInstructor);
+            // ✅ 사용자의 미디어 상태 전달 (기본값: 켜짐)
+            const isVideoEnabled = user.isVideoEnabled !== undefined ? user.isVideoEnabled : true;
+            const isAudioEnabled = user.isAudioEnabled !== undefined ? user.isAudioEnabled : true;
+            
+            addParticipantToList(user.id, user.name, user.isInstructor, isVideoEnabled, isAudioEnabled);
+            
+            // ✅ 원격 사용자 정보에 미디어 상태 저장 (handleRemoteStream 전에)
+            if (!state.remoteUsers[user.id]) {
+                state.remoteUsers[user.id] = {};
+            }
+            state.remoteUsers[user.id].isVideoEnabled = isVideoEnabled;
+            state.remoteUsers[user.id].isAudioEnabled = isAudioEnabled;
             
             // ✅ 수정: 새로 들어온 내가 기존 사용자들(user)에게 offer를 보냄
             // 이렇게 해야 시그널 충돌이 없음
@@ -680,6 +691,8 @@ function initializeSocket() {
     state.socket.on('user-media-state-changed', (data) => {
         const { userId, userName, isVideoEnabled, isAudioEnabled } = data;
         updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEnabled);
+        // ✅ 원격 비디오 위의 아이콘도 업데이트
+        updateRemoteVideoMediaState(userId, isVideoEnabled, isAudioEnabled);
     });
 
     // 화면 공유 시작
@@ -1384,13 +1397,38 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
             label.textContent = remoteUserName;
         }
 
+        // ✅ 미디어 상태 아이콘 컨테이너 (비디오 위에 표시)
+        const mediaStateIcons = document.createElement('div');
+        mediaStateIcons.id = `remote-media-icons-${remoteUserId}`;
+        mediaStateIcons.className = 'remote-media-icons';
+        mediaStateIcons.style.position = 'absolute';
+        mediaStateIcons.style.bottom = '10px';
+        mediaStateIcons.style.right = '10px';
+        mediaStateIcons.style.display = 'flex';
+        mediaStateIcons.style.gap = '6px';
+        mediaStateIcons.style.zIndex = '10';
+
         videoContainer.appendChild(video);
         videoContainer.appendChild(label);
+        videoContainer.appendChild(mediaStateIcons);
+        
+        // ✅ videoContainer를 relative 위치로 설정 (절대 위치 자식 배치)
+        videoContainer.style.position = 'relative';
 
         remoteVideosContainer.appendChild(videoContainer);
         console.log(`[handleRemoteStream] 비디오 컨테이너 생성 완료: ${remoteUserId}`);
 
         state.remoteUsers[remoteUserId].videoElement = video;
+        
+        // ✅ 초기 미디어 상태 아이콘 설정
+        if (userInfo && (userInfo.isVideoEnabled !== undefined || userInfo.isAudioEnabled !== undefined)) {
+            updateRemoteVideoMediaState(
+                remoteUserId, 
+                userInfo.isVideoEnabled !== undefined ? userInfo.isVideoEnabled : true,
+                userInfo.isAudioEnabled !== undefined ? userInfo.isAudioEnabled : true
+            );
+            console.log(`[handleRemoteStream] 초기 미디어 아이콘 설정: ${remoteUserId}`);
+        }
     }
 
     const video = state.remoteUsers[remoteUserId].videoElement;
@@ -1965,7 +2003,7 @@ function updateParticipantCount() {
     document.getElementById('participant-count').textContent = count;
 }
 
-function addParticipantToList(userId, userName, isInstructor = false) {
+function addParticipantToList(userId, userName, isInstructor = false, isVideoEnabled = true, isAudioEnabled = true) {
     const listEl = document.getElementById('participants-list');
 
     let participantEl = document.getElementById(`participant-${userId}`);
@@ -1993,6 +2031,9 @@ function addParticipantToList(userId, userName, isInstructor = false) {
         nameContainer.appendChild(mediaStateContainer);
         
         participantEl.appendChild(nameContainer);
+        
+        // ✅ 초기 미디어 상태 설정
+        updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEnabled);
 
         // ✅ 추가: 강의자에게만 출석 상태 버튼 표시
         if (state.isInstructor && !isInstructor) {
@@ -2373,14 +2414,14 @@ function updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEn
     const cameraIcon = document.createElement('span');
     cameraIcon.className = 'media-icon camera-icon';
     cameraIcon.title = isVideoEnabled ? '카메라 켜짐' : '카메라 꺼짐';
-    cameraIcon.textContent = isVideoEnabled ? '📷' : '📷‍🚫';
+    cameraIcon.textContent = isVideoEnabled ? '�️' : '❌';
     cameraIcon.style.opacity = isVideoEnabled ? '1' : '0.5';
     
     // 마이크 상태 아이콘
     const micIcon = document.createElement('span');
     micIcon.className = 'media-icon mic-icon';
     micIcon.title = isAudioEnabled ? '마이크 켜짐' : '마이크 꺼짐';
-    micIcon.textContent = isAudioEnabled ? '🎤' : '🔇';
+    micIcon.textContent = isAudioEnabled ? '🎙️' : '❌';
     micIcon.style.opacity = isAudioEnabled ? '1' : '0.5';
     
     mediaStateContainer.appendChild(cameraIcon);
@@ -2388,6 +2429,43 @@ function updateParticipantMediaState(userId, userName, isVideoEnabled, isAudioEn
     
     console.log(`📡 ${userName}의 미디어 상태 업데이트: 카메라=${isVideoEnabled}, 마이크=${isAudioEnabled}`);
 }
+
+// ✅ 원격 비디오 화면 위의 미디어 아이콘 업데이트
+function updateRemoteVideoMediaState(userId, isVideoEnabled, isAudioEnabled) {
+    const mediaStateContainer = document.getElementById(`remote-media-icons-${userId}`);
+    
+    if (!mediaStateContainer) {
+        console.warn(`원격 미디어 아이콘 컨테이너 없음: ${userId}`);
+        return;
+    }
+    
+    // 기존 아이콘 제거
+    mediaStateContainer.innerHTML = '';
+    
+    // 카메라 상태 아이콘
+    const cameraIcon = document.createElement('span');
+    cameraIcon.className = 'media-icon camera-icon';
+    cameraIcon.title = isVideoEnabled ? '카메라 켜짐' : '카메라 꺼짐';
+    cameraIcon.textContent = isVideoEnabled ? '�️' : '❌';
+    cameraIcon.style.fontSize = '24px';
+    cameraIcon.style.opacity = isVideoEnabled ? '1' : '0.5';
+    cameraIcon.style.transition = 'opacity 0.3s ease';
+    
+    // 마이크 상태 아이콘
+    const micIcon = document.createElement('span');
+    micIcon.className = 'media-icon mic-icon';
+    micIcon.title = isAudioEnabled ? '마이크 켜짐' : '마이크 꺼짐';
+    micIcon.textContent = isAudioEnabled ? '🎙️' : '❌';
+    micIcon.style.fontSize = '24px';
+    micIcon.style.opacity = isAudioEnabled ? '1' : '0.5';
+    micIcon.style.transition = 'opacity 0.3s ease';
+    
+    mediaStateContainer.appendChild(cameraIcon);
+    mediaStateContainer.appendChild(micIcon);
+    
+    console.log(`🎥 원격 사용자 ${userId}의 비디오 위 미디어 아이콘 업데이트: 카메라=${isVideoEnabled}, 마이크=${isAudioEnabled}`);
+}
+
 async function refineQuestion() {
     const question = document.getElementById('chat-message-input').value.trim();
     

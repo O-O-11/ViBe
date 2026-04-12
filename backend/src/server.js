@@ -314,7 +314,9 @@ io.on('connection', (socket) => {
       id: socket.id,
       name: userName,
       isInstructor: rooms[roomId].instructorId === socket.id,
-      attendance: null  // ✅ 출석 상태: null (미체크), 'present' (출석), 'late' (지각), 'absent' (결석)
+      attendance: null,  // ✅ 출석 상태: null (미체크), 'present' (출석), 'late' (지각), 'absent' (결석)
+      isVideoEnabled: true,  // ✅ 카메라 상태
+      isAudioEnabled: true   // ✅ 마이크 상태
     });
 
     // ✅ 수정: 새로운 참여자(강의자 아님)가 들어오면 출석 상태 리셋
@@ -346,7 +348,8 @@ io.on('connection', (socket) => {
     // 새 사용자에게 기존 사용자 목록 전송 (레거시 코드 호환성)
     socket.emit('existing-users', {
       users: rooms[roomId].users.filter(u => u.id !== socket.id),
-      isUserInstructor: rooms[roomId].instructorId === socket.id
+      isUserInstructor: rooms[roomId].instructorId === socket.id,
+      totalUsers: rooms[roomId].users.length
     });
   });
 
@@ -657,6 +660,15 @@ io.on('connection', (socket) => {
     const { roomId, userId, userName, isVideoEnabled, isAudioEnabled } = data;
     
     console.log(`📱 ${userName}의 미디어 상태 변경: 카메라=${isVideoEnabled}, 마이크=${isAudioEnabled}`);
+    
+    // ✅ Backend에서 사용자 상태 업데이트
+    if (rooms[roomId]) {
+      const user = rooms[roomId].users.find(u => u.id === userId);
+      if (user) {
+        user.isVideoEnabled = isVideoEnabled;
+        user.isAudioEnabled = isAudioEnabled;
+      }
+    }
     
     // 같은 방의 모든 사용자에게 알림
     io.to(roomId).emit('user-media-state-changed', {

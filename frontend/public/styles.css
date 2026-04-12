@@ -551,12 +551,10 @@ body {
 
 .camera-icon {
     cursor: default;
-    title: "카메라 상태";
 }
 
 .mic-icon {
     cursor: default;
-    title: "마이크 상태";
 }
 
 .attendance-buttons {
@@ -914,7 +912,7 @@ body {
     height: 56px;
     font-size: 24px;
     cursor: pointer;
-    z-index: 100;
+    z-index: 101;
     display: flex;
     align-items: center;
     justify-content: center;
