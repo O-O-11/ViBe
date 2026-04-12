@@ -333,6 +333,16 @@ async function joinRoom(userName, roomId, isJoining = false) {
         showNotification(errorMsg, 'error');
         console.error('❌ 회의 입장 오류:', error);
 
+        // ✅ 로컬 스트림 정리 (캠 끄기)
+        if (state.localStream) {
+            try {
+                state.localStream.getTracks().forEach(track => track.stop());
+            } catch (e) {
+                console.error('로컬 스트림 정리 중 오류:', e);
+            }
+            state.localStream = null;
+        }
+
         // 오류 시 로그인 화면으로 복귀
         document.getElementById('conference-container').classList.remove('active');
         document.getElementById('login-container').classList.add('active');
@@ -2207,7 +2217,24 @@ function forceLeaveConference(reason = '방이 폐쇄되었습니다') {
 
 // ========== 알림 ==========
 function showNotification(message, type = 'info') {
-    return; // 알림 비활성화
+    // ✅ 타입별 아이콘 설정
+    const icons = {
+        'success': '✅',
+        'error': '❌',
+        'info': 'ℹ️',
+        'warning': '⚠️'
+    };
+    
+    const icon = icons[type] || 'ℹ️';
+    const displayMessage = `${icon} ${message}`;
+    
+    // ✅ 콘솔에도 표시
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    
+    // ✅ 사용자에게 alert로 표시 (에러/경고는 alert, 정보는 콘솔만)
+    if (type === 'error' || type === 'warning') {
+        alert(displayMessage);
+    }
 }
 
 // ========== 사이드바 토글 ==========
