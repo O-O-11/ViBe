@@ -1378,11 +1378,15 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
 
     // 원격 비디오 요소 생성
     if (!document.getElementById(`remote-video-${remoteUserId}`)) {
-        const remoteVideosContainer = document.getElementById('remote-videos-container');
-        console.log(`[handleRemoteStream] remote-videos-container 존재? ${!!remoteVideosContainer}`);
+        // 강의자인지 학생인지 확인해서 적절한 컨테이너 선택
+        const userInfo = state.remoteUsers[remoteUserId];
+        const isInstructor = userInfo && userInfo.isInstructor;
+        const containerId = isInstructor ? 'remote-instructor-container' : 'remote-students-container';
+        const remoteVideosContainer = document.getElementById(containerId);
+        console.log(`[handleRemoteStream] ${containerId} 존재? ${!!remoteVideosContainer}`);
         
         if (!remoteVideosContainer) {
-            console.error('[handleRemoteStream] remote-videos-container를 찾을 수 없습니다!');
+            console.error(`[handleRemoteStream] ${containerId}를 찾을 수 없습니다!`);
             return;
         }
 
@@ -1391,8 +1395,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         videoContainer.className = 'video-tile remote';
         
         // 강의자인 경우 instructor 클래스 추가
-        const userInfo = state.remoteUsers[remoteUserId];
-        if (userInfo && userInfo.isInstructor) {
+        if (isInstructor) {
             videoContainer.classList.add('instructor');
         }
 
@@ -1408,8 +1411,7 @@ function handleRemoteStream(remoteUserId, stream, remoteUserName) {
         const label = document.createElement('div');
         label.className = 'video-label';
         
-        // 이미 위에서 선언된 userInfo 재사용
-        if (userInfo && userInfo.isInstructor) {
+        if (isInstructor) {
             label.innerHTML = `${remoteUserName} <span class="instructor-badge">강의자</span>`;
             console.log(`👨‍🏫 강의자 라벨 추가: ${remoteUserName}`);
         } else {
@@ -2357,7 +2359,8 @@ function forceLeaveConference(reason = '방이 폐쇄되었습니다') {
         // 폼 초기화
         document.getElementById('chat-messages').innerHTML = '';
         document.getElementById('participants-list').innerHTML = '';
-        document.getElementById('remote-videos-container').innerHTML = '';
+        document.getElementById('remote-instructor-container').innerHTML = '';
+        document.getElementById('remote-students-container').innerHTML = '';
         document.getElementById('room-info').style.display = 'none';
         
         console.log('✅ UI 정리 완료');
