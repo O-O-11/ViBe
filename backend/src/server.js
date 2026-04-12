@@ -27,7 +27,7 @@ function isOriginAllowed(origin) {
   const allowedDomains = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://vibe-classroom.netlify.app',
+    'https://qbridge-classroom.netlify.app',
     process.env.FRONTEND_URL
   ].filter(Boolean);
 
