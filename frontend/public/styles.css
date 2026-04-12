@@ -981,6 +981,7 @@ body {
 
 /* 제어 바 숨김 상태 */
 .control-bar.hidden {
+    bottom: -150px;
     opacity: 0;
     visibility: hidden;
 }
