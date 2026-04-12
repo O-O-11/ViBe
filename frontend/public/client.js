@@ -219,12 +219,12 @@ async function joinRoom(userName, roomId, isJoining = false) {
         showNotification('서버 연결 중...', 'info');
         
         if (!state.socket) {
-            // ✅ 다른 네트워크 연결 안정화 옵션
+            // ✅ 강화된 재연결 설정 (간헐적 끊김 대비)
             state.socket = io(BACKEND_URL, {
                 reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                reconnectionAttempts: 10,
+                reconnectionDelay: 500,       // 더 빠른 초기 재시도
+                reconnectionDelayMax: 10000,  // 더 오래 재시도
+                reconnectionAttempts: Infinity, // ✅ 무제한 재시도
                 transports: ['websocket', 'polling'],
                 upgrade: true,
                 rejectUnauthorized: false,
@@ -238,13 +238,12 @@ async function joinRoom(userName, roomId, isJoining = false) {
 
             state.socket.on('connect_error', (error) => {
                 console.error(`❌ 서버 연결 오류:`, error.message);
-                showNotification(`서버 연결 실패: ${error.message}`, 'error');
             });
 
             state.socket.on('disconnect', (reason) => {
                 console.warn(`⚠️  서버 연결 종료: ${reason}`);
                 if (reason === 'transport close') {
-                    showNotification('네트워크 연결이 끊어졌습니다', 'error');
+                    console.log('⏳ 자동으로 재연결을 시도 중입니다');
                 }
             });
         }
@@ -550,12 +549,12 @@ function setupSocketEvents() {
 // Socket.IO 이벤트 연결
 function initializeSocket() {
     if (!state.socket) {
-        // ✅ 다른 네트워크에서도 안정적인 연결을 위해 재시도 설정
+        // ✅ 강화된 재연결 설정 (주기적 끊김 대비)
         state.socket = io(BACKEND_URL, {
             reconnection: true,           // 자동 재연결 활성화
-            reconnectionDelay: 1000,      // 첫 재시도까지 1초 대기
-            reconnectionDelayMax: 5000,   // 최대 5초 대기
-            reconnectionAttempts: 10,     // 최대 10회 재시도
+            reconnectionDelay: 500,       // 첫 재시도까지 0.5초 대기 (더 빠르게)
+            reconnectionDelayMax: 10000,  // 최대 10초 대기 (더 오래 재시도)
+            reconnectionAttempts: Infinity, // ✅ 무제한 재시도 (계속 재시도)
             transports: ['websocket', 'polling'],  // WebSocket 우선, 폴백 폴링
             upgrade: true,                // 연결 우그레이드 시도
             multiplex: false,             // ✅ 다중 탭/창 환경에서 안정성
@@ -585,24 +584,23 @@ function initializeSocket() {
     state.socket.on('disconnect', (reason) => {
         console.warn(`⚠️ 서버 연결 끊김: ${reason}`);
         if (reason === 'io server disconnect') {
-            showNotification('서버가 연결을 종료했습니다', 'error');
+            showNotification('⏳ 서버와의 연결 복구 중...', 'warning');
         } else if (reason === 'transport close') {
-            showNotification('네트워크 연결이 끊어졌습니다', 'error');
+            showNotification('⏳ 네트워크 복구 중...', 'warning');
         } else {
-            showNotification(`연결 끊김 (${reason})`, 'error');
+            showNotification(`⏳ 연결 복구 중... (${reason})`, 'warning');
         }
     });
     
     // 📌 재연결 시도 중
     state.socket.on('connect_error', (error) => {
         console.error('❌ Socket 연결 오류:', error);
-        showNotification(`연결 오류: ${error.message || '알 수 없는 오류'}`, 'error');
     });
     
     // 📌 재연결 성공
     state.socket.on('reconnect', (attemptNumber) => {
         console.log(`✅ 재연결 성공 (${attemptNumber}번째 시도)`);
-        showNotification('✅ 서버 재연결 성공', 'success');
+        showNotification('✅ 연결 복구됨', 'success');
     });
 
     // 다른 사용자 입장
@@ -2297,13 +2295,13 @@ function toggleControlBar() {
         // 패널 표시
         controlBar.classList.remove('hidden');
         toggleBtn.classList.remove('hidden');
-        toggleBtn.textContent = '🔽';
+        toggleBtn.textContent = '▼';
         toggleBtn.title = '제어 바 숨김';
     } else {
         // 패널 숨김
         controlBar.classList.add('hidden');
         toggleBtn.classList.add('hidden');
-        toggleBtn.textContent = '🔼';
+        toggleBtn.textContent = '▲';
         toggleBtn.title = '제어 바 표시';
     }
 }

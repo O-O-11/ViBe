@@ -915,6 +915,7 @@ body {
 /* 토글 버튼 숨김 상태 */
 .control-bar-toggle.hidden {
     bottom: 40px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 슬라이드 애니메이션 */
