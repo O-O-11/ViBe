@@ -184,7 +184,7 @@ body {
 .video-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 3fr 1fr;
     grid-template-rows: 1fr 1fr;
     row-gap: 3px;
     column-gap: 10px;
