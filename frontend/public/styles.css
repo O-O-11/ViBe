@@ -1139,7 +1139,7 @@ body {
 /* 채팅 알림 배지 */
 .notification-badge {
     position: absolute;
-    top: 40%;
+    top: 32%;
     right: 8px;
     width: 20px;
     height: 20px;
