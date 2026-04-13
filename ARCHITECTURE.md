@@ -1,6 +1,24 @@
 # ViBe 아키텍처 및 기술 깊이 분석
 
-## 🏗️ 시스템 아키텍처
+## � 배포 환경
+
+### 현재 프로덕션 환경
+
+| 컴포넌트 | 서비스 | URL | 상태 |
+|---------|--------|-----|------|
+| **프론트엔드** | Netlify | https://qbridge-classroom.netlify.app/ | ✅ 운영 중 |
+| **백엔드** | Railway | https://vibe-production-6c36.up.railway.app | ✅ 운영 중 |
+| **소스코드** | GitHub | ViBe 저장소 | ✅ 동기화 |
+
+### 배포 구성
+
+- **프론트엔드**: Netlify 정적 호스팅 (frontend 폴더)
+- **백엔드**: Railway 서버 호스팅 (backend 폴더)
+- **CI/CD**: GitHub 자동 배포 (main 브랜치 변경 시)
+
+---
+
+## �🏗️ 시스템 아키텍처
 
 ### 전체 구조
 ```

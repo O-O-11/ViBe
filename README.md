@@ -39,33 +39,14 @@
 - 모던 웹 브라우저 (Chrome, Firefox, Safari, Edge)
 - HTTPS 환경 또는 localhost (카메라/마이크 접근 권한 필요)
 
-## 🚀 설치 및 실행
+## 🚀 설치 및 배포
 
-### 1. 저장소 클론
-```bash
-cd ViBe
-```
+### 📱 라이브 페이지
 
-### 2. 의존성 설치
-```bash
-npm install
-```
+- **프론트엔드**: https://qbridge-classroom.netlify.app/ (Netlify)
+- **백엔드**: https://vibe-production-6c36.up.railway.app (Railway)
 
-### 3. 서버 시작
-```bash
-# 개발 모드
-npm run dev
-
-# 또는 일반 실행
-npm start
-```
-
-서버는 기본적으로 `http://localhost:3000`에서 실행됩니다.
-
-### 4. 브라우저에서 접속
-```
-http://localhost:3000
-```
+### 🖥️ 로컬 설치
 
 ## 📖 사용 방법
 
