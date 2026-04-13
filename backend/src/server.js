@@ -166,7 +166,7 @@ app.post('/api/refine-question', async (req, res) => {
     }
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
@@ -181,7 +181,7 @@ app.post('/api/refine-question', async (req, res) => {
           2. 모호한 표현은 구체적으로 바꾸되, 학생이 말하지 않은 내용을 임의로 추가하지 마
           3. 강의자 입장에서 "무엇을 묻는 질문인지" 한눈에 파악되도록 작성해
           4. 간결하고 명확한 문장으로 다듬어줘
-          5. 오직 다듬어진 질문만 반환해. 설명, 인사, 부연 설명 없이 질문 텍스트만 반환해`
+          5. 오직 다듬어진 **질문**만 반환해. 설명, 인사, 부연 설명 없이 질문 텍스트만 반환해`
         },
         {
           role: 'user',
